@@ -37,5 +37,8 @@ dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 [project.urls]
 Homepage = "https://github.com/eclipse-basyx/basyx-python-sdk"
 
+[tool.setuptools_scm]
+root = "./src"
+
 [tool.setuptools]
 packages = ["basyx_client"]
