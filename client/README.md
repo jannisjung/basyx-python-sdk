@@ -6,7 +6,7 @@
 > - In other projects, reference in your `requirements.txt`:
 >
 >    ```
->    git+https://github.com/jannisjung/basyx-python-sdk.git@feature/client-sdk#subdirectory=python-sdk
+>    git+https://github.com/jannisjung/basyx-python-sdk.git@feature/client-sdk#subdirectory=client
 >    ```
 
 ## Contents

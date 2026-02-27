@@ -38,4 +38,4 @@ dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 Homepage = "https://github.com/eclipse-basyx/basyx-python-sdk"
 
 [tool.setuptools]
-packages = ["vimoprop_utils"]
+packages = ["basyx_client"]
