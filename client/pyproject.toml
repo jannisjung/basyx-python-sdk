@@ -3,14 +3,13 @@ requires      = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "basyx-python-sdk"
+name = "basyx-python-client-sdk"
 version = "0.0.1"
 description = "Connects to and interacts with AAS-Repositories"
 readme = "README.md"
 authors = [{ name = "Jannis Jung", email = "jannis.jung@iese.fraunhofer.de" }]
-license = { file = "LICENSE" }
+license = "MIT"
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
