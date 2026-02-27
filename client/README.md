@@ -2,7 +2,6 @@
 
 > **Important notes:**
 > - The client SDK is currently a Work in Progress (WIP).
-> - # TODO
 > - In other projects, reference in your `requirements.txt`:
 >
 >    ```
@@ -28,10 +27,7 @@
 1. Clone the repository.
 2. Install development dependencies:
 3. navigate to [`client`](.) 
-4. 
-       pip install -r dev_requirements.txt
-5. Optional: Install the package in editable mode so changes take effect immediately:
-`pip install -e`.
+4. `pip install -e .`
 
 ### For Users in Projects
 

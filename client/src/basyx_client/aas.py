@@ -1,12 +1,11 @@
 import json
 import logging
-from typing import List
 import requests
 
 from basyx.aas import model
 from basyx.aas import adapter
 
-from pagination import Page
+from basyx_client.pagination import Page
 from basyx_client.utils import to_base64_urlencoded
 
 logger = logging.getLogger(__name__)
