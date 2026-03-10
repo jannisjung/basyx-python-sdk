@@ -77,12 +77,12 @@ Note: The following usage sections are placeholders since the SDK is currently a
 #### AAS Functions
 
 - [x] create_shell
-- [ ] update_shell
+- [x] update_shell
 
 - [x] get_shell
 - [x] get_shells
 
-- [ ] delete_shell
+- [x] delete_shell
 - [ ] 
 - [ ] add_submodel
 - [ ] reference_submodel
@@ -105,7 +105,7 @@ Note: The following usage sections are placeholders since the SDK is currently a
 - [ ] update_submodel_element_value
 
 - [ ] delete_submodel_element
-- [ ] get_patent:_id
+- [ ] get_parent_id
 
 - [ ] get_parent
 

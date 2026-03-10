@@ -80,7 +80,7 @@ class TestAasClient(unittest.TestCase):
         self.assertEqual(self.default_shell.id, remote_shell.id)
         # Verify the requests were called with correct arguments
         aas_id_b64 = to_base64_urlencoded(self.default_shell.id)
-        mock_get.assert_called_once_with(f"{self.client.repo_url}/{aas_id_b64}")
+        mock_get.assert_called_once_with(f"{self.client.repo_url}/{aas_id_b64}", timeout=30)
     @patch('basyx_client.aas.requests.get')
     def test_get_shell_failure(self, mock_get):
 
@@ -115,10 +115,62 @@ class TestAasClient(unittest.TestCase):
         result_ids = [shell.id for shell in result_shells]
         for id_ in self.TEST_IDS.values():
             self.assertIn(id_, result_ids)
-        
         # Verify the request was called with correct arguments
-        mock_get.assert_called_once_with(f"{self.base_url}/shells")
-
+        mock_get.assert_called_once_with(f"{self.base_url}/shells", params={'limit': 100}, timeout=30)
+    
+    @patch('basyx_client.aas.requests.put')
+    def test_update_shell(self, mock_put):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 204
+        mock_put.return_value = mock_response
+        
+        updated = self.client.update_shell(shell=self.default_shell)
+        self.assertTrue(updated)
+        # Verify the put request was called with correct arguments
+        aas_id_b64 = to_base64_urlencoded(self.default_shell.id)
+        mock_put.assert_called_once_with(
+            url=f"{self.client.repo_url}/{aas_id_b64}",
+            json=mock_put.call_args.kwargs['json'],
+            headers={'Content-Type': 'application/json'},
+            timeout=30
+        )
+    
+    @patch('basyx_client.aas.requests.put')
+    def test_update_shell_failure(self, mock_put):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 400  # Bad request
+        mock_put.return_value = mock_response
+        
+        updated = self.client.update_shell(shell=self.default_shell)
+        self.assertFalse(updated)
+    
+    @patch('basyx_client.aas.requests.delete')
+    def test_delete_shell(self, mock_delete):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 204
+        mock_delete.return_value = mock_response
+        
+        deleted = self.client.delete_shell(shell_id=self.default_shell.id)
+        self.assertTrue(deleted)
+        # Verify the delete request was called with correct arguments
+        aas_id_b64 = to_base64_urlencoded(self.default_shell.id)
+        mock_delete.assert_called_once_with(
+            f"{self.client.repo_url}/{aas_id_b64}",
+            timeout=30
+        )
+    
+    @patch('basyx_client.aas.requests.delete')
+    def test_delete_shell_failure(self, mock_delete):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 404  # Not found
+        mock_delete.return_value = mock_response
+        
+        deleted = self.client.delete_shell(shell_id=self.default_shell.id)
+        self.assertFalse(deleted)
         
 
 
