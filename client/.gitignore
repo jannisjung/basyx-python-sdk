@@ -1,0 +1,14 @@
+# Virtual environments
+.venv/
+venv/
+
+# Cache directories
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# IDE settings
+.vscode/
+
+# Generated client code
+python-client-generated/

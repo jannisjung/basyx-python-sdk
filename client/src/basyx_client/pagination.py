@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import List, Optional
+
 
 @dataclass
 class Page:
-    def __init__(self, result: List[object], cursor: Optional[str] = None):
+    def __init__(self, result: list[object], cursor: str | None = None):
         self.result = result
         self.cursor = cursor
 
