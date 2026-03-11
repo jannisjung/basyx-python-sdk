@@ -83,20 +83,19 @@ Note: The following usage sections are placeholders since the SDK is currently a
 - [x] get_shells
 
 - [x] delete_shell
-- [ ] 
-- [ ] add_submodel
+- [x] add_submodel
 - [ ] reference_submodel
 
 - [ ] get_submodel_references
-- [ ] get_submodels
+- [x] get_submodels
 - [ ] remove_submodel
 
 #### Submodel Functions
 
-- [ ] create_submodel
-- [ ] update_submodel
+- [x] create_submodel
+- [x] update_submodel
 
-- [ ] delete_submodel
+- [x] delete_submodel
 - [ ] add_submodel_element
 
 - [ ] update_submodel_element
