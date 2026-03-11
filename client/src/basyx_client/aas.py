@@ -230,10 +230,11 @@ class AasClient:
             logger.warning(f"Unexpected error when retrieving submodel references: {e}")
             return None
 
-    def get_submodels(self) -> list[model.Submodel] | None:
+    def get_submodels(self, shell_id: str) -> list[model.Submodel] | None:
         """
         Retrieves all submodels referenced by this shell.
         
+        :param shell_id: The ID of the shell to retrieve submodels for
         :return: A list of submodels, or None if not found
         :rtype: list[model.Submodel] | None
         """
@@ -245,11 +246,12 @@ class AasClient:
             logger.warning(f"Unexpected error when retrieving submodels: {e}")
             return None
 
-    def remove_submodel(self, submodel_id: str, delete_submodel: bool = False) -> bool:
+    def remove_submodel(self, shell_id: str, submodel_id: str, delete_submodel: bool = False) -> bool:
         """
         Removes a submodel reference from the shell.
         If delete_submodel is True, the submodel will be deleted from the submodel repository as well.
         
+        :param shell_id: The ID of the shell to remove the submodel from
         :param submodel_id: The ID of the submodel to remove
         :param delete_submodel: If True, also delete the submodel from the submodel repository
         :return: True if submodel could be removed, False if not (e.g. if ID was not available)

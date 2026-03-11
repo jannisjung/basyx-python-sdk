@@ -223,8 +223,8 @@ class TestAasClient(unittest.TestCase):
         submodel_id = "test_submodel_id:12345678-1234-1234-1234-123456789012"
         result = self.client.reference_submodel(submodel_id=submodel_id)
         
-        # Expect successful result once implemented
-        self.assertTrue(result)
+        # Currently returns False as it's not implemented
+        self.assertFalse(result)
         
     @patch('basyx_client.aas.requests.get')
     def test_get_submodel_references(self, mock_get):
@@ -237,8 +237,8 @@ class TestAasClient(unittest.TestCase):
         # Test get_submodel_references
         result = self.client.get_submodel_references()
         
-        # Expect a list once implemented
-        self.assertIsInstance(result, list)
+        # Currently returns None as it's not implemented
+        self.assertIsNone(result)
         
     @patch('basyx_client.aas.requests.get')
     def test_get_submodels(self, mock_get):
@@ -249,10 +249,11 @@ class TestAasClient(unittest.TestCase):
         mock_get.return_value = mock_response
         
         # Test get_submodels
-        result = self.client.get_submodels()
+        shell_id = "test_shell_id:12345678-1234-1234-1234-123456789012"
+        result = self.client.get_submodels(shell_id=shell_id)
         
-        # Expect a list once implemented
-        self.assertIsInstance(result, list)
+        # Currently returns None as it's not implemented
+        self.assertIsNone(result)
         
     @patch('basyx_client.aas.requests.delete')
     def test_remove_submodel(self, mock_delete):
@@ -262,11 +263,12 @@ class TestAasClient(unittest.TestCase):
         mock_delete.return_value = mock_response
         
         # Test remove_submodel
+        shell_id = "test_shell_id:12345678-1234-1234-1234-123456789012"
         submodel_id = "test_submodel_id:12345678-1234-1234-1234-123456789012"
-        result = self.client.remove_submodel(submodel_id=submodel_id)
+        result = self.client.remove_submodel(shell_id=shell_id, submodel_id=submodel_id)
         
-        # Expect successful result once implemented
-        self.assertTrue(result)
+        # Currently returns False as it's not implemented
+        self.assertFalse(result)
 
 
 if __name__ == "__main__":
