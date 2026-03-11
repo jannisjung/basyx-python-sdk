@@ -86,12 +86,10 @@ Note: The following usage sections are placeholders since the SDK is currently a
 - [ ] 
 - [ ] add_submodel
 - [ ] reference_submodel
-- [ ] remove_submodel_reference
 
 - [ ] get_submodel_references
 - [ ] get_submodels
-
-- [ ] delete_submodel
+- [ ] remove_submodel
 
 #### Submodel Functions
 

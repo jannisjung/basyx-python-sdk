@@ -187,6 +187,87 @@ class TestAasClient(unittest.TestCase):
             id_short="TEST_AAS",
             asset_information=asset_information)
 
+    def _create_submodel(self, submodel_id=None) -> model.Submodel:
+        if submodel_id is None:
+            submodel_id = "test_submodel_id:12345678-1234-1234-1234-123456789012"
+        
+        return model.Submodel(
+            id_=submodel_id,
+            id_short="TEST_SUBMODEL"
+        )
+
+    @patch('basyx_client.aas.requests.post')
+    def test_add_submodel(self, mock_post):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 201
+        mock_post.return_value = mock_response
+        
+        # Create a test submodel
+        test_submodel = self._create_submodel()
+        
+        # Test add_submodel
+        result = self.client.add_submodel(submodel=test_submodel)
+        
+        # Expect successful result once implemented
+        self.assertTrue(result)
+        
+    @patch('basyx_client.aas.requests.post')
+    def test_reference_submodel(self, mock_post):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 201
+        mock_post.return_value = mock_response
+        
+        # Test reference_submodel
+        submodel_id = "test_submodel_id:12345678-1234-1234-1234-123456789012"
+        result = self.client.reference_submodel(submodel_id=submodel_id)
+        
+        # Expect successful result once implemented
+        self.assertTrue(result)
+        
+    @patch('basyx_client.aas.requests.get')
+    def test_get_submodel_references(self, mock_get):
+        # Mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "[]"
+        mock_get.return_value = mock_response
+        
+        # Test get_submodel_references
+        result = self.client.get_submodel_references()
+        
+        # Expect a list once implemented
+        self.assertIsInstance(result, list)
+        
+    @patch('basyx_client.aas.requests.get')
+    def test_get_submodels(self, mock_get):
+        # Mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "[]"
+        mock_get.return_value = mock_response
+        
+        # Test get_submodels
+        result = self.client.get_submodels()
+        
+        # Expect a list once implemented
+        self.assertIsInstance(result, list)
+        
+    @patch('basyx_client.aas.requests.delete')
+    def test_remove_submodel(self, mock_delete):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 204
+        mock_delete.return_value = mock_response
+        
+        # Test remove_submodel
+        submodel_id = "test_submodel_id:12345678-1234-1234-1234-123456789012"
+        result = self.client.remove_submodel(submodel_id=submodel_id)
+        
+        # Expect successful result once implemented
+        self.assertTrue(result)
+
 
 if __name__ == "__main__":
     unittest.main()

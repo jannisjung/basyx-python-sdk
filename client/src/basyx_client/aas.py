@@ -6,6 +6,7 @@ from basyx.aas import adapter, model
 
 from basyx_client.pagination import Page
 from basyx_client.utils import to_base64_urlencoded
+from basyx_client.submodel import SubmodelClient
 
 logger = logging.getLogger(__name__)
 
@@ -181,4 +182,83 @@ class AasClient:
 
         except Exception as e:
             logger.warning(f"Unexpected error when deleting shell: {e}")
+            return False
+
+    def add_submodel(self, submodel: model.Submodel) -> bool:
+        """
+        Creates the submodel in the submodel repository and references it to this shell.
+        
+        :param submodel: The submodel to add
+        :return: True if successful, False otherwise
+        :rtype: bool
+        """
+        try:
+            logger.debug(f"Adding submodel with ID: {submodel.id}")
+            # Delegate to submodel client
+        except Exception as e:
+            logger.warning(f"Unexpected error when adding submodel: {e}")
+            return False
+
+    def reference_submodel(self, submodel_id: str) -> bool:
+        """
+        References an existing submodel.
+        
+        :param submodel_id: The ID of the submodel to reference
+        :return: True if successful, False otherwise
+        :rtype: bool
+        """
+        try:
+            logger.debug(f"Referencing submodel with ID: {submodel_id}")
+            # TODO: Implement submodel referencing logic
+            return False
+        except Exception as e:
+            logger.warning(f"Unexpected error when referencing submodel: {e}")
+            return False
+
+    def get_submodel_references(self) -> list[model.ModelReference] | None:
+        """
+        Retrieves all submodel references associated with this AAS.
+        
+        :return: A list of submodel references, or None if not found
+        :rtype: list[model.ModelReference] | None
+        """
+        try:
+            logger.debug("Retrieving submodel references")
+            # TODO: Implement submodel references retrieval logic
+            return None
+        except Exception as e:
+            logger.warning(f"Unexpected error when retrieving submodel references: {e}")
+            return None
+
+    def get_submodels(self) -> list[model.Submodel] | None:
+        """
+        Retrieves all submodels referenced by this shell.
+        
+        :return: A list of submodels, or None if not found
+        :rtype: list[model.Submodel] | None
+        """
+        try:
+            logger.debug("Retrieving submodels")
+            # TODO: Implement submodels retrieval logic
+            return None
+        except Exception as e:
+            logger.warning(f"Unexpected error when retrieving submodels: {e}")
+            return None
+
+    def remove_submodel(self, submodel_id: str, delete_submodel: bool = False) -> bool:
+        """
+        Removes a submodel reference from the shell.
+        If delete_submodel is True, the submodel will be deleted from the submodel repository as well.
+        
+        :param submodel_id: The ID of the submodel to remove
+        :param delete_submodel: If True, also delete the submodel from the submodel repository
+        :return: True if submodel could be removed, False if not (e.g. if ID was not available)
+        :rtype: bool
+        """
+        try:
+            logger.debug(f"Removing submodel reference with ID: {submodel_id}")
+            # TODO: Implement submodel removal logic
+            return False
+        except Exception as e:
+            logger.warning(f"Unexpected error when removing submodel: {e}")
             return False

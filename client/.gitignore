@@ -9,6 +9,3 @@ venv/
 
 # IDE settings
 .vscode/
-
-# Generated client code
-python-client-generated/
