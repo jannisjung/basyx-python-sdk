@@ -186,6 +186,220 @@ class TestSubmodelClient(unittest.TestCase):
         self.assertEqual(0, len(page.result))
         self.assertIsNone(page.cursor)
 
+    def _create_submodel_element(self) -> model.Property:
+        return model.Property(
+            id_short="TestProperty",
+            value_type=model.datatypes.String,
+            value="test_value"
+        )
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_add_submodel_element(self, mock_post):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 201
+        mock_post.return_value = mock_response
+
+        # Create test submodel and element
+        test_submodel = self._create_submodel()
+        test_element = self._create_submodel_element()
+
+        # Test add_submodel_element
+        result = self.client.add_submodel_element(submodel=test_submodel, submodel_element=test_element)
+
+        # Expect successful result
+        self.assertTrue(result)
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_add_submodel_element_failure(self, mock_post):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 400  # Bad request
+        mock_post.return_value = mock_response
+
+        # Create test submodel and element
+        test_submodel = self._create_submodel()
+        test_element = self._create_submodel_element()
+
+        # Test add_submodel_element
+        result = self.client.add_submodel_element(submodel=test_submodel, submodel_element=test_element)
+
+        # Expect failure
+        self.assertFalse(result)
+
+    @patch('basyx_client.submodel.requests.put')
+    def test_update_submodel_element(self, mock_put):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 204
+        mock_put.return_value = mock_response
+
+        # Create test submodel and element
+        test_submodel = self._create_submodel()
+        test_element = self._create_submodel_element()
+
+        # Test update_submodel_element
+        result = self.client.update_submodel_element(submodel=test_submodel, update=test_element)
+
+        # Expect successful result
+        self.assertTrue(result)
+
+    @patch('basyx_client.submodel.requests.put')
+    def test_update_submodel_element_failure(self, mock_put):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 400  # Bad request
+        mock_put.return_value = mock_response
+
+        # Create test submodel and element
+        test_submodel = self._create_submodel()
+        test_element = self._create_submodel_element()
+
+        # Test update_submodel_element
+        result = self.client.update_submodel_element(submodel=test_submodel, update=test_element)
+
+        # Expect failure
+        self.assertFalse(result)
+
+    @patch('basyx_client.submodel.requests.patch')
+    def test_update_submodel_element_value(self, mock_patch):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 204
+        mock_patch.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+        test_value = "new_test_value"
+
+        # Test update_submodel_element_value
+        result = self.client.update_submodel_element_value(submodel=test_submodel, value=test_value)
+
+        # Expect successful result
+        self.assertTrue(result)
+
+    @patch('basyx_client.submodel.requests.patch')
+    def test_update_submodel_element_value_failure(self, mock_patch):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 400  # Bad request
+        mock_patch.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+        test_value = "new_test_value"
+
+        # Test update_submodel_element_value
+        result = self.client.update_submodel_element_value(submodel=test_submodel, value=test_value)
+
+        # Expect failure
+        self.assertFalse(result)
+
+    @patch('basyx_client.submodel.requests.delete')
+    def test_delete_submodel_element(self, mock_delete):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 204
+        mock_delete.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+        id_short_path = "TestProperty"
+
+        # Test delete_submodel_element
+        result = self.client.delete_submodel_element(submodel=test_submodel, id_short_path=id_short_path)
+
+        # Expect successful result
+        self.assertTrue(result)
+
+    @patch('basyx_client.submodel.requests.delete')
+    def test_delete_submodel_element_failure(self, mock_delete):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 404  # Not found
+        mock_delete.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+        id_short_path = "TestProperty"
+
+        # Test delete_submodel_element
+        result = self.client.delete_submodel_element(submodel=test_submodel, id_short_path=id_short_path)
+
+        # Expect failure
+        self.assertFalse(result)
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_parent_id_single(self, mock_get):
+        # Mock successful response with single parent
+        mock_response = Mock()
+        mock_response.status_code = 200
+        parent_data = {"id": "test_parent_id"}
+        mock_response.text = json.dumps(parent_data)
+        mock_get.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+
+        # Test get_parent_id
+        parent_id = self.client.get_parent_id(test_submodel)
+
+        # Verify response
+        self.assertEqual("test_parent_id", parent_id)
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_parent_id_multiple(self, mock_get):
+        # Mock successful response with multiple parents
+        mock_response = Mock()
+        mock_response.status_code = 200
+        parents_data = [{"id": "test_parent_id1"}, {"id": "test_parent_id2"}]
+        mock_response.text = json.dumps(parents_data)
+        mock_get.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+
+        # Test get_parent_id
+        parent_ids = self.client.get_parent_id(test_submodel)
+
+        # Verify response
+        self.assertIsInstance(parent_ids, list)
+        self.assertEqual(2, len(parent_ids))
+        self.assertIn("test_parent_id1", parent_ids)
+        self.assertIn("test_parent_id2", parent_ids)
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_parent_id_none(self, mock_get):
+        # Mock 404 response (no parents)
+        mock_response = Mock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+
+        # Test get_parent_id
+        parent_id = self.client.get_parent_id(test_submodel)
+
+        # Verify response
+        self.assertIsNone(parent_id)
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_parent_id_failure(self, mock_get):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 500  # Server error
+        mock_get.return_value = mock_response
+
+        # Create test submodel
+        test_submodel = self._create_submodel()
+
+        # Test get_parent_id
+        parent_id = self.client.get_parent_id(test_submodel)
+
+        # Verify response
+        self.assertIsNone(parent_id)
+
 
 if __name__ == "__main__":
     unittest.main()

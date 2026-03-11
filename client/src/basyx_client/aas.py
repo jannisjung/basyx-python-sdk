@@ -21,6 +21,7 @@ class AasClient:
         self.repo_url = base_url + "/shells"
         self.timeout = timeout
         self.default_headers = {'Content-Type': 'application/json'}
+        self.submodel_client = SubmodelClient(base_url, timeout)
 
     def create_shell(self, shell: model.AssetAdministrationShell) -> bool:
         """
@@ -123,7 +124,7 @@ class AasClient:
             logger.warning(f"Unexpected error when retrieving shell: {e}")
             return None
 
-    def get_shells(self, limit: int = 100) -> Page:
+    def get_shells(self, limit: int = 100, cursor: str | None = None) -> Page:
         """
         Retrieves all Asset Administration Shells
 
@@ -195,6 +196,7 @@ class AasClient:
         try:
             logger.debug(f"Adding submodel with ID: {submodel.id}")
             # Delegate to submodel client
+            return self.submodel_client.create_submodel(submodel)
         except Exception as e:
             logger.warning(f"Unexpected error when adding submodel: {e}")
             return False
