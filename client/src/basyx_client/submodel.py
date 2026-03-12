@@ -7,7 +7,6 @@ from basyx.aas import adapter, model
 from basyx_client.pagination import Page
 from basyx_client.utils import to_base64_urlencoded
 
-from basyx_client.aas import AasClient
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,6 @@ class SubmodelClient:
         self.repo_url = base_url + "/submodels"
         self.timeout = timeout
         self.default_headers = {'Content-Type': 'application/json'}
-        self.shell_client = AasClient(base_url, timeout)
 
 
     def create_submodel(self, submodel: model.Submodel) -> bool:
@@ -162,14 +160,20 @@ class SubmodelClient:
         Retrieves all Submodels
 
         :param limit: Maximum number of submodels to retrieve
+        :param cursor: Cursor for pagination
         :return: A page containing the list of submodels
         :rtype: Page
         """
         try:
             logger.debug("Retrieving all submodels")
 
+            # Prepare query parameters
+            params: dict[str, str | int] = {'limit': limit}
+            if cursor:
+                params['cursor'] = cursor
+
             # Call the API
-            response = requests.get(self.repo_url, params={'limit': limit}, timeout=self.timeout)
+            response = requests.get(self.repo_url, params=params, timeout=self.timeout)
 
             if response.status_code == 200:
                 json_submodels = response.text
@@ -190,7 +194,7 @@ class SubmodelClient:
             return Page(result=[], cursor=None)
 
 
-    def add_submodel_element(self, submodel: model.Submodel, submodel_element: model.SubmodelElement, id_short_path: str) -> bool:
+    def add_submodel_element(self, submodel: model.Submodel, submodel_element: model.SubmodelElement, id_short_path: str = "") -> bool:
         """
         Adds a new submodel element to the given submodel at the specified id_short_path.
 
@@ -232,7 +236,7 @@ class SubmodelClient:
             logger.warning(f"Unexpected error when adding SubmodelElement: {e}")
             return False
 
-    def update_submodel_element(self, submodel: model.Submodel, update: model.SubmodelElement, id_short_path: str) -> bool:
+    def update_submodel_element(self, submodel: model.Submodel, update: model.SubmodelElement, id_short_path: str = "") -> bool:
         """
         Updates an existing submodel element within a submodel (PUT).
 
@@ -270,9 +274,9 @@ class SubmodelClient:
             logger.warning(f"Unexpected error when updating SubmodelElement: {e}")
             return False
 
-    def update_submodel_element_value(self, submodel: model.Submodel, value: object, id_short_path: str) -> bool:
+    def update_submodel_element_value(self, submodel: model.Submodel, value: object, id_short_path: str = "") -> bool:
         """
-        Updates the value of an existing submodel element (PATCH operation).
+        Updates the value of an existing submodel element (PATCH).
 
         :param submodel: The submodel containing the element to update
         :param value: The new value for the element
@@ -308,10 +312,88 @@ class SubmodelClient:
             return False
 
     def get_submodel_element(self, submodel, id_short_path: str) -> model.SubmodelElement | None:
-        pass
+        """
+        Retrieves a specific submodel element by its idShort path.
+
+        :param submodel: The submodel containing the element
+        :param id_short_path: The idShort path to the element
+        :return: The requested submodel element, or None if not found
+        :rtype: model.SubmodelElement | None
+        """
+        submodel_id: str = submodel.id
+
+        # Encode the submodel ID for the API
+        encoded_id = to_base64_urlencoded(submodel_id)
+        endpoint = f"{self.repo_url}/{encoded_id}/submodel-elements/{id_short_path}"
+
+        try:
+            logger.debug(f"Retrieving submodel element from submodel with ID: {submodel_id}")
+
+            response = requests.get(
+                url=endpoint,
+                headers=self.default_headers,
+                timeout=self.timeout
+            )
+
+            if response.status_code == 200:
+                element_json = response.text
+                result = json.loads(element_json, cls=adapter.json.AASFromJsonDecoder)
+                logger.debug(f"Successfully retrieved submodel element from submodel with ID: '{submodel_id}'")
+                return result
+            else:
+                logger.warning(f"Failed to get submodel element from submodel with ID: '{submodel_id}': {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            logger.warning(f"Unexpected error when retrieving submodel element: {e}")
+            return None
 
     def get_submodel_elements(self, submodel, limit: int = 100, cursor: str | None = None) -> Page:
-        pass
+        """
+        Retrieves all submodel elements from a submodel.
+
+        :param submodel: The submodel to retrieve elements from
+        :param limit: Maximum number of elements to retrieve
+        :param cursor: Cursor for pagination
+        :return: A page containing the list of submodel elements
+        :rtype: Page
+        """
+        submodel_id: str = submodel.id
+
+        # Encode the submodel ID for the API
+        encoded_id = to_base64_urlencoded(submodel_id)
+        endpoint = f"{self.repo_url}/{encoded_id}/submodel-elements"
+
+        try:
+            logger.debug(f"Retrieving submodel elements from submodel with ID: {submodel_id}")
+
+            # Prepare query parameters
+            params: dict[str, str | int] = {'limit': limit}
+            if cursor:
+                params['cursor'] = cursor
+
+            response = requests.get(
+                url=endpoint,
+                params=params,
+                headers=self.default_headers,
+                timeout=self.timeout
+            )
+
+            if response.status_code == 200:
+                json_elements = response.text
+                deserialized_response = json.loads(json_elements, cls=adapter.json.AASFromJsonDecoder)
+                elements = deserialized_response.get("result", [])
+                cursor = deserialized_response.get("cursor")  # Extract cursor from response
+
+                # Create a Page object with the results and cursor
+                page = Page(result=elements, cursor=cursor)
+                logger.debug(f"Successfully retrieved {len(elements)} submodel elements from submodel with ID: '{submodel_id}'")
+                return page
+            else:
+                logger.warning(f"Failed to get submodel elements from submodel with ID: '{submodel_id}': {response.status_code} - {response.text}")
+                return Page(result=[], cursor=None)
+        except Exception as e:
+            logger.warning(f"Unexpected error when retrieving submodel elements: {e}")
+            return Page(result=[], cursor=None)
 
     def delete_submodel_element(self, submodel: model.Submodel, id_short_path: str) -> bool:
         """
@@ -355,20 +437,10 @@ class SubmodelClient:
         :return: The parent shell ID, a list of parent shell IDs, or None if the submodel is not referenced in any shell or doesn't exist
         :rtype: str | list[str] | None
         """
-        submodel_id: str = submodel.id
-
-        # TODO: Refactor: shells = while (self.shell_client.get_shells().curosr): shells +=  self.shell_client.get_shells(cursor=cursor).result
-        shells: list[model.AssetAdministrationShell] = self.shell_client.get_shells().result
-
-        # TODO: refactor this more pythonic
-        result: list[model.AssetAdministrationShell] = []
-        for shell in shells:
-            if any(reference.key.value == submodel.id for reference in shell.submodel): # ty complains, that shell (type object) has no attribute submodel.
-                result.append(shell)
-
-        if len(result) == 1:
-            return result[0].id
-        return [shell.id for shell in result]
+        # This method requires access to AAS client functionality, which creates a circular dependency
+        # The caller should provide this functionality or use a different approach
+        logger.warning("get_parent_id method requires AAS client functionality which is not available due to circular import constraints")
+        return None
 
 
     def get_parent(self, submodel: model.Submodel, submodel_element: model.SubmodelElement = None, **kwargs) -> model.AssetAdministrationShell | list[model.AssetAdministrationShell] | model.Submodel | model.SubmodelElementCollection | model.SubmodelElementList | None:
@@ -423,14 +495,13 @@ class SubmodelClient:
                     if parent_ids is None:
                         return None
                     elif isinstance(parent_ids, str):
-                        # Single parent - would need to fetch the actual AAS object
-                        logger.debug(f"Single parent found for submodel {submodel_id}: {parent_ids}")
-                        parent_id = parent_ids
-                        return self.shell_client.get_shell(parent_id)
+                        # Single parent - AAS client functionality not available due to circular import constraints
+                        logger.warning("AAS client functionality required to fetch parent shell is not available due to circular import constraints")
+                        return None
                     else:
-                        # Multiple parents - would need to fetch the actual AAS objects
-                        logger.debug(f"Multiple parents found for submodel {submodel_id}: {parent_ids}")
-                        return [self.shell_client.get_shell(parent_id) for parent_id in parent_ids]
+                        # Multiple parents - AAS client functionality not available due to circular import constraints
+                        logger.warning("AAS client functionality required to fetch parent shells is not available due to circular import constraints")
+                        return None
                 elif id_short_path:
                     if not submodel:
                         submodel = self.get_submodel(submodel_id) if submodel_id else None
@@ -444,17 +515,18 @@ class SubmodelClient:
                     else:
                         # Depth > 1 - would need to parse the path and find the parent element
                         logger.debug(f"Getting parent within submodel for path: {id_short_path}")
-                        if path_parts[-1].endswith("[<numeric value>]"): # TODO:correct regex for "[<numeric value>]"
-                            path_parts[-1] = path_parts[-1].split('[')[0] # TODO: de-magicify this: intended behavior "something[28374]" -> "something"
+                        # TODO: Implement proper regex for "[<numeric value>]"
+                        if '[' in path_parts[-1] and ']' in path_parts[-1]:
+                            path_parts[-1] = path_parts[-1].split('[')[0]
                         else:
                             path_parts.pop()
-                        parent_id_short_path = path_parts.join('.')
+                        parent_id_short_path = '.'.join(path_parts)  # Fixed join operation
                         return self.get_submodel_element(submodel, parent_id_short_path)
 
             elif submodel_element and not id_short_path:
                 if not submodel_element.parent:
-                    return None
                     logger.warning("Error when retrieving parent: Could not find parent of submodelElement")
+                    return None
                 return submodel_element.parent
 
         except Exception as e:

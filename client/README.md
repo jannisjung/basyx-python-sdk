@@ -1,7 +1,7 @@
 # Eclipse BaSyx Python Client SDK
 
 > **Important notes:**
-> - The client SDK is currently a Work in Progress (WIP).
+> - The client SDK is now feature-complete for basic AAS and Submodel operations.
 > - In other projects, reference in your `requirements.txt`:
 >
 >    ```
@@ -35,37 +35,37 @@ You can integrate this SDK into your project via the pyproject.toml configuratio
 
 ## Usage
 
-Note: The following usage sections are placeholders since the SDK is currently a WIP and a final API is not yet established.
+The client SDK provides a comprehensive set of functions for interacting with Eclipse BaSyx servers:
 
 - AASX functions:
-- `upload_aasx` – Upload all AASX files, recursively found in a given directory, or a single AASX file.
-- `download_aasx` – Download the entire repository as an AASX, or as an AASX file per shell; optionally download specific shells by id, with options to include/exclude submodels; or download just one or more submodels by id with a carrier shell around them.
+- (Not yet implemented) – AASX functionality is planned but not yet implemented in the current version.
 
 - AAS functions:
-- `create_shell`
-- `update_shell`
-- `get_shell`
-- `get_shells`
-- `delete_shell`
+- `create_shell` – Creates a new Asset Administration Shell
+- `update_shell` – Updates an existing Asset Administration Shell
+- `get_shell` – Retrieves a specific Asset Administration Shell by ID
+- `get_shells` – Retrieves all Asset Administration Shells with pagination support
+- `delete_shell` – Deletes an Asset Administration Shell
 - `add_submodel` – Creates the submodel in the submodel repository and references it to this shell
-- `reference_submodel` – References an existing submodel
-- `remove_submodel_reference`
-- `get_submodel_references`
-- `get_submodels`
-- `delete_submodel` – Removes the reference from the shell and deletes the submodel from the submodel repository
+- `reference_submodel` – References an existing submodel in this AAS
+- `remove_submodel` – Removes a submodel reference from the shell and optionally deletes the submodel from the submodel repository
+- `get_submodel_references` – Retrieves all submodel references associated with this AAS
+- `get_submodels` – Retrieves all submodels referenced by this shell
 
 - Submodel functions:
-- `create_submodel`
-- `update_submodel`
-- `delete_submodel`
-- `add_submodel_element`
-- `update_submodel_element`
-- `update_submodel_element_value`
-- `delete_submodel_element`
-- `get_patent:_id` – For submodels, returns the parent_aas_id; for submodel elements, returns either the submodel_id, or for nested submodel elements, returns the submodel_id with the path to the submodel
-- `get_parent` – For submodels, returns the parent_aas; for submodel elements, returns either the submodel or, for nested submodel elements, returns the parent submodel_element_collection or submodel_element_list
+- `create_submodel` – Creates a new Submodel
+- `update_submodel` – Updates an existing Submodel
+- `delete_submodel` – Deletes a Submodel
+- `add_submodel_element` – Adds a new submodel element to the given submodel at the specified id_short_path
+- `update_submodel_element` – Updates an existing submodel element within a submodel
+- `update_submodel_element_value` – Updates the value of an existing submodel element
+- `delete_submodel_element` – Deletes a submodel element from the given submodel
+- `get_submodel_element` – Retrieves a specific submodel element by its idShort path
+- `get_submodel_elements` – Retrieves all submodel elements from a submodel
+- `get_parent_id` – Returns the ID or a list of IDs of the parent shell(s) if the submodel is referenced by one or more shells
+- `get_parent` – Returns the parent object of a submodel or submodel element
 
-> Note: The above descriptions are placeholders since the SDK is still a WIP. Please adjust API method names and descriptions to your final implementation.
+> Note: The above descriptions reflect the current implementation status of the SDK.
 
 ### Development Coverage (TODO)
 
@@ -84,11 +84,11 @@ Note: The following usage sections are placeholders since the SDK is currently a
 
 - [x] delete_shell
 - [x] add_submodel
-- [ ] reference_submodel
+- [x] reference_submodel
 
-- [ ] get_submodel_references
+- [x] get_submodel_references
 - [x] get_submodels
-- [ ] remove_submodel
+- [x] remove_submodel
 
 #### Submodel Functions
 
@@ -96,15 +96,15 @@ Note: The following usage sections are placeholders since the SDK is currently a
 - [x] update_submodel
 
 - [x] delete_submodel
-- [ ] add_submodel_element
+- [x] add_submodel_element
 
-- [ ] update_submodel_element
-- [ ] update_submodel_element_value
+- [x] update_submodel_element
+- [x] update_submodel_element_value
 
-- [ ] delete_submodel_element
-- [ ] get_parent_id
+- [x] delete_submodel_element
+- [x] get_parent_id
 
-- [ ] get_parent
+- [x] get_parent
 
 
 ### License

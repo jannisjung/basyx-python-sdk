@@ -118,6 +118,32 @@ class TestAasClient(unittest.TestCase):
         # Verify the request was called with correct arguments
         mock_get.assert_called_once_with(f"{self.base_url}/shells", params={'limit': 100}, timeout=30)
     
+    @patch('basyx_client.aas.requests.get')
+    def test_get_shells_with_cursor(self, mock_get):
+        # Create test shells
+        test_shells = [self._create_shell(id_) for id_ in self.TEST_IDS.values()]
+        
+        # Mock successful get response with cursor
+        mock_response = Mock()
+        mock_response.status_code = 200
+        # Create a JSON representation of the response with cursor
+        response_data = {"result": test_shells, "cursor": "test_cursor"}
+        response_json = json.dumps(response_data, cls=adapter.json.AASToJsonEncoder)
+        mock_response.text = response_json
+        mock_get.return_value = mock_response
+        
+        result_page = self.client.get_shells(cursor="test_cursor")
+        result_shells = result_page.result
+        
+        # Verify response
+        self.assertEqual(len(result_shells), 2)
+        self.assertEqual("test_cursor", result_page.cursor)
+        result_ids = [shell.id for shell in result_shells]
+        for id_ in self.TEST_IDS.values():
+            self.assertIn(id_, result_ids)
+        # Verify the request was called with correct arguments
+        mock_get.assert_called_once_with(f"{self.base_url}/shells", params={'limit': 100, 'cursor': 'test_cursor'}, timeout=30)
+    
     @patch('basyx_client.aas.requests.put')
     def test_update_shell(self, mock_put):
         # Mock successful response
@@ -220,55 +246,86 @@ class TestAasClient(unittest.TestCase):
         mock_post.return_value = mock_response
         
         # Test reference_submodel
+        shell_id = "test_shell_id:12345678-1234-1234-1234-123456789012"
         submodel_id = "test_submodel_id:12345678-1234-1234-1234-123456789012"
-        result = self.client.reference_submodel(submodel_id=submodel_id)
+        result = self.client.reference_submodel(shell_id=shell_id, submodel_id=submodel_id)
         
-        # Currently returns False as it's not implemented
-        self.assertFalse(result)
+        # Should return True for successful response
+        self.assertTrue(result)
+        # Verify the post request was called with correct arguments
+        mock_post.assert_called_once()
+        args, kwargs = mock_post.call_args
+        encoded_shell_id = to_base64_urlencoded(shell_id)
+        self.assertEqual(kwargs['url'], f"{self.client.repo_url}/{encoded_shell_id}/submodel-refs")
         
     @patch('basyx_client.aas.requests.get')
     def test_get_submodel_references(self, mock_get):
-        # Mock response
+        # Mock successful response
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.text = "[]"
+        # Create a JSON representation of the response
+        response_data = {"result": []}
+        response_json = json.dumps(response_data, cls=adapter.json.AASToJsonEncoder)
+        mock_response.text = response_json
         mock_get.return_value = mock_response
         
         # Test get_submodel_references
-        result = self.client.get_submodel_references()
+        shell_id = "test_shell_id:12345678-1234-1234-1234-123456789012"
+        result = self.client.get_submodel_references(shell_id=shell_id)
         
-        # Currently returns None as it's not implemented
-        self.assertIsNone(result)
+        # Should return an empty list for successful response
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 0)
+        # Verify the get request was called with correct arguments
+        encoded_shell_id = to_base64_urlencoded(shell_id)
+        mock_get.assert_called_once_with(f"{self.client.repo_url}/{encoded_shell_id}/submodel-refs", timeout=30)
         
-    @patch('basyx_client.aas.requests.get')
-    def test_get_submodels(self, mock_get):
-        # Mock response
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.text = "[]"
-        mock_get.return_value = mock_response
+    @patch('basyx_client.aas.AasClient.get_submodel_references')
+    @patch('basyx_client.submodel.SubmodelClient.get_submodel')
+    def test_get_submodels(self, mock_get_submodel, mock_get_submodel_refs):
+        # Mock successful response for submodel references
+        mock_ref = Mock()
+        mock_ref.key = [Mock(value="test_submodel_id")]
+        mock_get_submodel_refs.return_value = [mock_ref]
+        
+        # Mock successful response for submodel
+        test_submodel = self._create_submodel()
+        mock_get_submodel.return_value = test_submodel
         
         # Test get_submodels
         shell_id = "test_shell_id:12345678-1234-1234-1234-123456789012"
         result = self.client.get_submodels(shell_id=shell_id)
         
-        # Currently returns None as it's not implemented
-        self.assertIsNone(result)
+        # Should return a list with one submodel
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].id, test_submodel.id)
         
     @patch('basyx_client.aas.requests.delete')
-    def test_remove_submodel(self, mock_delete):
-        # Mock successful response
+    @patch('basyx_client.submodel.SubmodelClient.delete_submodel')
+    def test_remove_submodel(self, mock_delete_submodel, mock_delete):
+        # Mock successful response for removing submodel reference
         mock_response = Mock()
         mock_response.status_code = 204
         mock_delete.return_value = mock_response
         
+        # Mock successful response for deleting submodel
+        mock_delete_submodel.return_value = True
+        
         # Test remove_submodel
         shell_id = "test_shell_id:12345678-1234-1234-1234-123456789012"
         submodel_id = "test_submodel_id:12345678-1234-1234-1234-123456789012"
-        result = self.client.remove_submodel(shell_id=shell_id, submodel_id=submodel_id)
+        result = self.client.remove_submodel(shell_id=shell_id, submodel_id=submodel_id, delete_submodel=True)
         
-        # Currently returns False as it's not implemented
-        self.assertFalse(result)
+        # Should return True for successful response
+        self.assertTrue(result)
+        # Verify the delete request was called with correct arguments
+        encoded_shell_id = to_base64_urlencoded(shell_id)
+        encoded_submodel_id = to_base64_urlencoded(submodel_id)
+        mock_delete.assert_called_once_with(
+            f"{self.client.repo_url}/{encoded_shell_id}/submodel-refs/{encoded_submodel_id}",
+            timeout=30
+        )
 
 
 if __name__ == "__main__":

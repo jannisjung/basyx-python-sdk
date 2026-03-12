@@ -129,14 +129,20 @@ class AasClient:
         Retrieves all Asset Administration Shells
 
         :param limit: Maximum number of shells to retrieve
+        :param cursor: Cursor for pagination
         :return: A page containing the list of shells
         :rtype: Page
         """
         try:
             logger.debug("Retrieving all shells")
 
+            # Prepare query parameters
+            params: dict[str, str | int] = {'limit': limit}
+            if cursor:
+                params['cursor'] = cursor
+
             # Call the API
-            response = requests.get(self.repo_url, params={'limit': limit}, timeout=self.timeout)
+            response = requests.get(self.repo_url, params=params, timeout=self.timeout)
 
             if response.status_code == 200:
                 json_shells = response.text
@@ -201,33 +207,77 @@ class AasClient:
             logger.warning(f"Unexpected error when adding submodel: {e}")
             return False
 
-    def reference_submodel(self, submodel_id: str) -> bool:
+    def reference_submodel(self, shell_id: str, submodel_id: str) -> bool:
         """
-        References an existing submodel.
+        References an existing submodel in this AAS.
         
+        :param shell_id: The ID of the AAS to reference the submodel in
         :param submodel_id: The ID of the submodel to reference
         :return: True if successful, False otherwise
         :rtype: bool
         """
         try:
-            logger.debug(f"Referencing submodel with ID: {submodel_id}")
-            # TODO: Implement submodel referencing logic
-            return False
+            logger.debug(f"Referencing submodel with ID: {submodel_id} in shell: {shell_id}")
+            
+            # Encode the shell ID for the API
+            encoded_shell_id = to_base64_urlencoded(shell_id)
+            shell_endpoint = f"{self.repo_url}/{encoded_shell_id}/submodel-refs"
+            
+            # Create the submodel reference payload
+            submodel_ref_payload = {
+                "keys": [
+                    {
+                        "type": "Submodel",
+                        "value": submodel_id
+                    }
+                ]
+            }
+            
+            # Call the API
+            response = requests.post(
+                url=shell_endpoint,
+                json=submodel_ref_payload,
+                headers=self.default_headers,
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 201:
+                logger.debug(f"Successfully referenced submodel with ID: {submodel_id} in shell: {shell_id}")
+                return True
+            else:
+                logger.warning(f"Failed to reference submodel: {response.status_code} - {response.text}")
+                return False
         except Exception as e:
             logger.warning(f"Unexpected error when referencing submodel: {e}")
             return False
 
-    def get_submodel_references(self) -> list[model.ModelReference] | None:
+    def get_submodel_references(self, shell_id: str) -> list[model.ModelReference] | None:
         """
         Retrieves all submodel references associated with this AAS.
         
+        :param shell_id: The ID of the AAS to retrieve submodel references for
         :return: A list of submodel references, or None if not found
         :rtype: list[model.ModelReference] | None
         """
         try:
-            logger.debug("Retrieving submodel references")
-            # TODO: Implement submodel references retrieval logic
-            return None
+            logger.debug(f"Retrieving submodel references for shell: {shell_id}")
+            
+            # Encode the shell ID for the API
+            encoded_shell_id = to_base64_urlencoded(shell_id)
+            shell_endpoint = f"{self.repo_url}/{encoded_shell_id}/submodel-refs"
+            
+            # Call the API
+            response = requests.get(shell_endpoint, timeout=self.timeout)
+            
+            if response.status_code == 200:
+                refs_json = response.text
+                deserialized_response = json.loads(refs_json, cls=adapter.json.AASFromJsonDecoder)
+                references = deserialized_response.get("result", [])
+                logger.debug(f"Successfully retrieved {len(references)} submodel references for shell: {shell_id}")
+                return references
+            else:
+                logger.warning(f"Failed to get submodel references: {response.status_code} - {response.text}")
+                return None
         except Exception as e:
             logger.warning(f"Unexpected error when retrieving submodel references: {e}")
             return None
@@ -241,9 +291,24 @@ class AasClient:
         :rtype: list[model.Submodel] | None
         """
         try:
-            logger.debug("Retrieving submodels")
-            # TODO: Implement submodels retrieval logic
-            return None
+            logger.debug(f"Retrieving submodels for shell: {shell_id}")
+            
+            # First get the submodel references
+            references = self.get_submodel_references(shell_id)
+            if references is None:
+                return None
+            
+            # Then retrieve each submodel using the submodel client
+            submodels = []
+            for ref in references:
+                if hasattr(ref, 'key') and len(ref.key) > 0:
+                    submodel_id = ref.key[0].value
+                    submodel = self.submodel_client.get_submodel(submodel_id)
+                    if submodel is not None:
+                        submodels.append(submodel)
+            
+            logger.debug(f"Successfully retrieved {len(submodels)} submodels for shell: {shell_id}")
+            return submodels if submodels else None
         except Exception as e:
             logger.warning(f"Unexpected error when retrieving submodels: {e}")
             return None
@@ -260,9 +325,33 @@ class AasClient:
         :rtype: bool
         """
         try:
-            logger.debug(f"Removing submodel reference with ID: {submodel_id}")
-            # TODO: Implement submodel removal logic
-            return False
+            logger.debug(f"Removing submodel reference with ID: {submodel_id} from shell: {shell_id}")
+            
+            # Encode the IDs for the API
+            encoded_shell_id = to_base64_urlencoded(shell_id)
+            encoded_submodel_id = to_base64_urlencoded(submodel_id)
+            shell_endpoint = f"{self.repo_url}/{encoded_shell_id}/submodel-refs/{encoded_submodel_id}"
+            
+            # Call the API to remove the submodel reference
+            response = requests.delete(shell_endpoint, timeout=self.timeout)
+            
+            success = False
+            if response.status_code == 204:
+                logger.debug(f"Successfully removed submodel reference with ID: {submodel_id} from shell: {shell_id}")
+                success = True
+            else:
+                logger.warning(f"Failed to remove submodel reference: {response.status_code} - {response.text}")
+                return False
+            
+            # If delete_submodel is True, also delete the submodel from the submodel repository
+            if delete_submodel and success:
+                logger.debug(f"Deleting submodel with ID: {submodel_id} from submodel repository")
+                submodel_deleted = self.submodel_client.delete_submodel(submodel_id)
+                if not submodel_deleted:
+                    logger.warning(f"Failed to delete submodel with ID: {submodel_id} from submodel repository")
+                    return False
+            
+            return success
         except Exception as e:
             logger.warning(f"Unexpected error when removing submodel: {e}")
             return False
