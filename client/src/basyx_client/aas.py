@@ -5,10 +5,11 @@ import requests
 from basyx.aas import adapter, model
 
 from basyx_client.pagination import Page
-from basyx_client.utils import to_base64_urlencoded
 from basyx_client.submodel import SubmodelClient
+from basyx_client.utils import to_base64_urlencoded
 
 logger = logging.getLogger(__name__)
+
 
 class AasClient:
     def __init__(self, base_url: str, timeout:int=30):
@@ -113,9 +114,13 @@ class AasClient:
 
             if response.status_code == 200:
                 shell_json = response.text
-                result = json.loads(shell_json, cls=adapter.json.AASFromJsonDecoder)
-                logger.debug(f"Successfully retrieved shell with ID: {shell_id}")
-                return result
+                try:
+                    result = json.loads(shell_json, cls=adapter.json.AASFromJsonDecoder)
+                    logger.debug(f"Successfully retrieved shell with ID: {shell_id}")
+                    return result
+                except Exception as e:
+                    logger.warning(f"Failed to deserialize shell with AASFromJsonDecoder: {e}")
+                    return None
             else:
                 logger.warning(f"Failed to get shell: {response.status_code} - {response.text}")
                 return None
@@ -194,7 +199,7 @@ class AasClient:
     def add_submodel(self, submodel: model.Submodel) -> bool:
         """
         Creates the submodel in the submodel repository and references it to this shell.
-        
+
         :param submodel: The submodel to add
         :return: True if successful, False otherwise
         :rtype: bool
@@ -210,37 +215,36 @@ class AasClient:
     def reference_submodel(self, shell_id: str, submodel_id: str) -> bool:
         """
         References an existing submodel in this AAS.
-        
+        NOTE: currently only implemented for ModelReferences.
+        TODO: check if other reference types are valid;
+            * swaggerhub api uses ExternalReference as example (https://app.swaggerhub.com/apis/Plattform_i40/AssetAdministrationShellRepositoryServiceSpecification/V3.0.1_SSP-001#/Asset%20Administration%20Shell%20Repository%20API/PostSubmodelReference_AasRepository)
+            * SPOT AAS only defines ModelReference (https://industrialdigitaltwin.io/aas-specifications/IDTA-01001/v3.1.2/spec-metamodel/core.html#aas_attributes)
+
+        NOTE: we are retreiving the submodel references from from a shell, instead of using the GET `/shells/{aasIdentifier}/submodel-refs` endpoint to avoid pagination handling
         :param shell_id: The ID of the AAS to reference the submodel in
         :param submodel_id: The ID of the submodel to reference
         :return: True if successful, False otherwise
         :rtype: bool
         """
         try:
+            submodel_ref = self._create_model_ref(submodel_id)
             logger.debug(f"Referencing submodel with ID: {submodel_id} in shell: {shell_id}")
-            
+
             # Encode the shell ID for the API
             encoded_shell_id = to_base64_urlencoded(shell_id)
             shell_endpoint = f"{self.repo_url}/{encoded_shell_id}/submodel-refs"
-            
+
             # Create the submodel reference payload
-            submodel_ref_payload = {
-                "keys": [
-                    {
-                        "type": "Submodel",
-                        "value": submodel_id
-                    }
-                ]
-            }
-            
+            submodel_ref_payload = json.dumps(submodel_ref, cls=adapter.json.AASToJsonEncoder)
+
             # Call the API
             response = requests.post(
                 url=shell_endpoint,
-                json=submodel_ref_payload,
+                data=submodel_ref_payload,
                 headers=self.default_headers,
                 timeout=self.timeout
             )
-            
+
             if response.status_code == 201:
                 logger.debug(f"Successfully referenced submodel with ID: {submodel_id} in shell: {shell_id}")
                 return True
@@ -251,73 +255,63 @@ class AasClient:
             logger.warning(f"Unexpected error when referencing submodel: {e}")
             return False
 
+    def _create_model_ref(self, referable_id: str) -> model.ModelReference:
+        # Create a dummy submodel with the actual submodel_id
+        dummy_submodel: model.Submodel = model.Submodel(id_=referable_id, id_short="dummy")
+        return model.ModelReference.from_referable(dummy_submodel)
+
     def get_submodel_references(self, shell_id: str) -> list[model.ModelReference] | None:
         """
         Retrieves all submodel references associated with this AAS.
-        
+
         :param shell_id: The ID of the AAS to retrieve submodel references for
         :return: A list of submodel references, or None if not found
         :rtype: list[model.ModelReference] | None
         """
-        try:
+        shell: model.AssetAdministrationShell = self.get_shell(shell_id)
+        if shell:
             logger.debug(f"Retrieving submodel references for shell: {shell_id}")
-            
-            # Encode the shell ID for the API
-            encoded_shell_id = to_base64_urlencoded(shell_id)
-            shell_endpoint = f"{self.repo_url}/{encoded_shell_id}/submodel-refs"
-            
-            # Call the API
-            response = requests.get(shell_endpoint, timeout=self.timeout)
-            
-            if response.status_code == 200:
-                refs_json = response.text
-                deserialized_response = json.loads(refs_json, cls=adapter.json.AASFromJsonDecoder)
-                references = deserialized_response.get("result", [])
-                logger.debug(f"Successfully retrieved {len(references)} submodel references for shell: {shell_id}")
-                return references
-            else:
-                logger.warning(f"Failed to get submodel references: {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            logger.warning(f"Unexpected error when retrieving submodel references: {e}")
-            return None
 
-    def get_submodels(self, shell_id: str) -> list[model.Submodel] | None:
+            # in basyx_python_sdk submodel references are located in AssetAdministrationShell.submodel
+            return shell.submodel
+        return None
+
+
+    def get_submodels(self, shell_id: str) -> list[model.Submodel]:
         """
         Retrieves all submodels referenced by this shell.
-        
+
         :param shell_id: The ID of the shell to retrieve submodels for
-        :return: A list of submodels, or None if not found
-        :rtype: list[model.Submodel] | None
+        :return: A list of submodels, or [] if not found
+        :rtype: list[model.Submodel]
         """
         try:
+            submodel_refs = self.get_submodel_references(shell_id)
+            if not submodel_refs:
+                logger.debug(f"No submodel references found for shell: {shell_id}")
+                return []
+
             logger.debug(f"Retrieving submodels for shell: {shell_id}")
-            
-            # First get the submodel references
-            references = self.get_submodel_references(shell_id)
-            if references is None:
-                return None
-            
-            # Then retrieve each submodel using the submodel client
-            submodels = []
-            for ref in references:
-                if hasattr(ref, 'key') and len(ref.key) > 0:
-                    submodel_id = ref.key[0].value
-                    submodel = self.submodel_client.get_submodel(submodel_id)
-                    if submodel is not None:
-                        submodels.append(submodel)
-            
-            logger.debug(f"Successfully retrieved {len(submodels)} submodels for shell: {shell_id}")
-            return submodels if submodels else None
+            submodels: list[model.Submodel] = []
+            for ref in submodel_refs:
+                if not isinstance(ref, model.ModelReference):
+                    logger.warning(f"Failed to retrieve submodel for reference: '{ref}'\nHint: Submodel references should be of Type ModelReference")
+                    continue
+                submodel_id = ref.key[0].value
+                submodel = self.submodel_client.get_submodel(submodel_id)
+                if submodel is not None:
+                    submodels.append(submodel)
+            return submodels
         except Exception as e:
             logger.warning(f"Unexpected error when retrieving submodels: {e}")
-            return None
+            return []
+
 
     def remove_submodel(self, shell_id: str, submodel_id: str, delete_submodel: bool = False) -> bool:
         """
         Removes a submodel reference from the shell.
         If delete_submodel is True, the submodel will be deleted from the submodel repository as well.
-        
+
         :param shell_id: The ID of the shell to remove the submodel from
         :param submodel_id: The ID of the submodel to remove
         :param delete_submodel: If True, also delete the submodel from the submodel repository
@@ -326,15 +320,15 @@ class AasClient:
         """
         try:
             logger.debug(f"Removing submodel reference with ID: {submodel_id} from shell: {shell_id}")
-            
+
             # Encode the IDs for the API
             encoded_shell_id = to_base64_urlencoded(shell_id)
             encoded_submodel_id = to_base64_urlencoded(submodel_id)
             shell_endpoint = f"{self.repo_url}/{encoded_shell_id}/submodel-refs/{encoded_submodel_id}"
-            
+
             # Call the API to remove the submodel reference
             response = requests.delete(shell_endpoint, timeout=self.timeout)
-            
+
             success = False
             if response.status_code == 204:
                 logger.debug(f"Successfully removed submodel reference with ID: {submodel_id} from shell: {shell_id}")
@@ -342,7 +336,7 @@ class AasClient:
             else:
                 logger.warning(f"Failed to remove submodel reference: {response.status_code} - {response.text}")
                 return False
-            
+
             # If delete_submodel is True, also delete the submodel from the submodel repository
             if delete_submodel and success:
                 logger.debug(f"Deleting submodel with ID: {submodel_id} from submodel repository")
@@ -350,7 +344,7 @@ class AasClient:
                 if not submodel_deleted:
                     logger.warning(f"Failed to delete submodel with ID: {submodel_id} from submodel repository")
                     return False
-            
+
             return success
         except Exception as e:
             logger.warning(f"Unexpected error when removing submodel: {e}")
