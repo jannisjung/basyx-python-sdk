@@ -379,7 +379,6 @@ class TestSubmodelClient(unittest.TestCase):
         submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
         mock_get.assert_called_once_with(
             url=f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{id_short_path}",
-            headers={'Content-Type': 'application/json'},
             timeout=30
         )
 

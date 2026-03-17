@@ -4,6 +4,7 @@ import logging
 import requests
 from basyx.aas import adapter, model
 
+from basyx_client.auth import AuthType
 from basyx_client.pagination import Page
 from basyx_client.submodel import SubmodelClient
 from basyx_client.utils import to_base64_urlencoded
@@ -12,17 +13,52 @@ logger = logging.getLogger(__name__)
 
 
 class AasClient:
-    def __init__(self, base_url: str, timeout:int=30):
+    def __init__(self, base_url: str, timeout: int=30, auth_type: str | AuthType | None = None, auth_credentials: tuple | None = None):
         """
         Initialize the AAS Client
 
         :param base_url: The base URL of the AAS repository
         :param timeout: Request timeout in seconds (default: 30)
+        :param auth_type: Type of authentication ('basic' or 'token')
+        :param auth_credentials: Credentials for authentication
+            For basic auth: (username, password)
+            For token auth: (token,)
         """
         self.repo_url = base_url + "/shells"
         self.timeout = timeout
         self.default_headers = {'Content-Type': 'application/json'}
+        self.auth_type = AuthType(auth_type) if isinstance(auth_type, str) else auth_type
+        self.auth_credentials = auth_credentials
         self.submodel_client = SubmodelClient(base_url, timeout)
+        # Pass auth settings to submodel client
+        if self.auth_type and auth_credentials:
+            self.submodel_client.auth_type = self.auth_type
+            self.submodel_client.auth_credentials = auth_credentials
+
+    def _add_auth_headers(self, headers: dict | None = None) -> dict:
+        """
+        Add authentication headers to the request headers.
+
+        :param headers: Original headers or None
+        :return: Headers with authentication added, or empty dict if no auth needed
+        """
+        # If no auth configured, return original headers or empty dict
+        if not self.auth_type or not self.auth_credentials:
+            return headers if headers is not None else {}
+
+        # Start with provided headers or empty dict
+        auth_headers = headers.copy() if headers is not None else {}
+
+        if self.auth_type == AuthType.BASIC:
+            from basyx_client.auth import add_basic_auth
+            username, password = self.auth_credentials
+            auth_headers = add_basic_auth(auth_headers, username, password)
+        elif self.auth_type == AuthType.TOKEN:
+            from basyx_client.auth import add_token_auth
+            token, = self.auth_credentials
+            auth_headers = add_token_auth(auth_headers, token)
+
+        return auth_headers
 
     def create_shell(self, shell: model.AssetAdministrationShell) -> bool:
         """
@@ -39,12 +75,20 @@ class AasClient:
             json_shell = json.dumps(shell, cls=adapter.json.AASToJsonEncoder)
 
             # Call the API
-            response = requests.post(
-                url=self.repo_url,
-                json=json.loads(json_shell),
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.post(
+                    url=self.repo_url,
+                    json=json.loads(json_shell),
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.post(
+                    url=self.repo_url,
+                    json=json.loads(json_shell),
+                    timeout=self.timeout
+                )
 
             if response.status_code == 201:
                 logger.debug(f"Successfully created shell with ID: {shell.id}")
@@ -76,12 +120,20 @@ class AasClient:
             shell_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            response = requests.put(
-                url=shell_endpoint,
-                json=json.loads(json_shell),
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.put(
+                    url=shell_endpoint,
+                    json=json.loads(json_shell),
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.put(
+                    url=shell_endpoint,
+                    json=json.loads(json_shell),
+                    timeout=self.timeout
+                )
 
             if response.status_code == 204:
                 logger.debug(f"Successfully updated shell with ID: {shell.id}")
@@ -110,7 +162,11 @@ class AasClient:
             shell_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            response = requests.get(shell_endpoint, timeout=self.timeout)
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.get(shell_endpoint, headers=headers, timeout=self.timeout)
+            else:
+                response = requests.get(shell_endpoint, timeout=self.timeout)
 
             if response.status_code == 200:
                 shell_json = response.text
@@ -147,7 +203,11 @@ class AasClient:
                 params['cursor'] = cursor
 
             # Call the API
-            response = requests.get(self.repo_url, params=params, timeout=self.timeout)
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.get(self.repo_url, params=params, headers=headers, timeout=self.timeout)
+            else:
+                response = requests.get(self.repo_url, params=params, timeout=self.timeout)
 
             if response.status_code == 200:
                 json_shells = response.text
@@ -183,7 +243,11 @@ class AasClient:
             shell_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            response = requests.delete(shell_endpoint, timeout=self.timeout)
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.delete(shell_endpoint, headers=headers, timeout=self.timeout)
+            else:
+                response = requests.delete(shell_endpoint, timeout=self.timeout)
 
             if response.status_code == 204:
                 logger.debug(f"Successfully deleted shell with ID: {shell_id}")
@@ -238,12 +302,23 @@ class AasClient:
             submodel_ref_payload = json.dumps(submodel_ref, cls=adapter.json.AASToJsonEncoder)
 
             # Call the API
-            response = requests.post(
-                url=shell_endpoint,
-                data=submodel_ref_payload,
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                headers['Content-Type'] = 'application/json'
+                response = requests.post(
+                    url=shell_endpoint,
+                    data=submodel_ref_payload,
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                headers = {'Content-Type': 'application/json'}
+                response = requests.post(
+                    url=shell_endpoint,
+                    data=submodel_ref_payload,
+                    headers=headers,
+                    timeout=self.timeout
+                )
 
             if response.status_code == 201:
                 logger.debug(f"Successfully referenced submodel with ID: {submodel_id} in shell: {shell_id}")
@@ -327,7 +402,11 @@ class AasClient:
             shell_endpoint = f"{self.repo_url}/{encoded_shell_id}/submodel-refs/{encoded_submodel_id}"
 
             # Call the API to remove the submodel reference
-            response = requests.delete(shell_endpoint, timeout=self.timeout)
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.delete(shell_endpoint, headers=headers, timeout=self.timeout)
+            else:
+                response = requests.delete(shell_endpoint, timeout=self.timeout)
 
             success = False
             if response.status_code == 204:

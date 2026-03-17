@@ -4,6 +4,7 @@ import logging
 import requests
 from basyx.aas import adapter, model
 
+from basyx_client.auth import AuthType
 from basyx_client.pagination import Page
 from basyx_client.utils import to_base64_urlencoded
 
@@ -23,6 +24,33 @@ class SubmodelClient:
         self.repo_url = base_url + "/submodels"
         self.timeout = timeout
         self.default_headers = {'Content-Type': 'application/json'}
+        self.auth_type = None
+        self.auth_credentials = None
+        
+    def _add_auth_headers(self, headers: dict | None = None) -> dict:
+        """
+        Add authentication headers to the request headers.
+        
+        :param headers: Original headers or None
+        :return: Headers with authentication added, or empty dict if no auth needed
+        """
+        # If no auth configured, return original headers or empty dict
+        if not self.auth_type or not self.auth_credentials:
+            return headers if headers is not None else {}
+
+        # Start with provided headers or empty dict
+        auth_headers = headers.copy() if headers is not None else {}
+
+        if self.auth_type == AuthType.BASIC:
+            from basyx_client.auth import add_basic_auth
+            username, password = self.auth_credentials
+            auth_headers = add_basic_auth(auth_headers, username, password)
+        elif self.auth_type == AuthType.TOKEN:
+            from basyx_client.auth import add_token_auth
+            token, = self.auth_credentials
+            auth_headers = add_token_auth(auth_headers, token)
+            
+        return auth_headers
 
 
     def create_submodel(self, submodel: model.Submodel) -> bool:
@@ -40,12 +68,20 @@ class SubmodelClient:
             json_submodel = json.dumps(submodel, cls=adapter.json.AASToJsonEncoder)
 
             # Call the API
-            response = requests.post(
-                url=self.repo_url,
-                json=json.loads(json_submodel),
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.post(
+                    url=self.repo_url,
+                    json=json.loads(json_submodel),
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.post(
+                    url=self.repo_url,
+                    json=json.loads(json_submodel),
+                    timeout=self.timeout
+                )
 
             if response.status_code == 201:
                 logger.debug(f"Successfully created submodel with ID: {submodel.id}")
@@ -74,7 +110,11 @@ class SubmodelClient:
             submodel_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            response = requests.get(submodel_endpoint, timeout=self.timeout)
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.get(submodel_endpoint, headers=headers, timeout=self.timeout)
+            else:
+                response = requests.get(submodel_endpoint, timeout=self.timeout)
 
             if response.status_code == 200:
                 submodel_json = response.text
@@ -108,12 +148,20 @@ class SubmodelClient:
             submodel_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            response = requests.put(
-                url=submodel_endpoint,
-                json=json.loads(json_submodel),
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.put(
+                    url=submodel_endpoint,
+                    json=json.loads(json_submodel),
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.put(
+                    url=submodel_endpoint,
+                    json=json.loads(json_submodel),
+                    timeout=self.timeout
+                )
 
             if response.status_code == 204:
                 logger.debug(f"Successfully updated submodel with ID: {submodel.id}")
@@ -142,7 +190,11 @@ class SubmodelClient:
             submodel_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            response = requests.delete(submodel_endpoint, timeout=self.timeout)
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.delete(submodel_endpoint, headers=headers, timeout=self.timeout)
+            else:
+                response = requests.delete(submodel_endpoint, timeout=self.timeout)
 
             if response.status_code == 204:
                 logger.debug(f"Successfully deleted submodel with ID: {submodel_id}")
@@ -173,7 +225,11 @@ class SubmodelClient:
                 params['cursor'] = cursor
 
             # Call the API
-            response = requests.get(self.repo_url, params=params, timeout=self.timeout)
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.get(self.repo_url, params=params, headers=headers, timeout=self.timeout)
+            else:
+                response = requests.get(self.repo_url, params=params, timeout=self.timeout)
 
             if response.status_code == 200:
                 json_submodels = response.text
@@ -219,12 +275,20 @@ class SubmodelClient:
 
             json_submodel_element: str = json.dumps(submodel_element, cls=adapter.json.AASToJsonEncoder)
 
-            response = requests.post(
-                url=endpoint,
-                json=json.loads(json_submodel_element),
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.post(
+                    url=endpoint,
+                    json=json.loads(json_submodel_element),
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.post(
+                    url=endpoint,
+                    json=json.loads(json_submodel_element),
+                    timeout=self.timeout
+                )
 
             if response.status_code == 201:
                 logger.debug(f"Successfully added SubmodelElement '{submodel_element.id_short}' to submodel with ID: '{submodel_id}'")
@@ -257,12 +321,20 @@ class SubmodelClient:
 
             json_submodel_element: str = json.dumps(update, cls=adapter.json.AASToJsonEncoder)
 
-            response = requests.put(
-                url=endpoint,
-                json=json.loads(json_submodel_element),
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.put(
+                    url=endpoint,
+                    json=json.loads(json_submodel_element),
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.put(
+                    url=endpoint,
+                    json=json.loads(json_submodel_element),
+                    timeout=self.timeout
+                )
 
             if response.status_code == 204:
                 logger.debug(f"Successfully updated SubmodelElement '{update.id_short}' in submodel with ID: '{submodel_id}'")
@@ -294,12 +366,20 @@ class SubmodelClient:
             logger.debug(f"Updating value of submodel element in submodel with ID: {submodel_id}")
 
             # For PATCH operations, we typically send the raw value
-            response = requests.patch(
-                url=endpoint,
-                json=value,
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.patch(
+                    url=endpoint,
+                    json=value,
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.patch(
+                    url=endpoint,
+                    json=value,
+                    timeout=self.timeout
+                )
 
             if response.status_code == 204:
                 logger.debug(f"Successfully updated value of submodel element in submodel with ID: '{submodel_id}'")
@@ -329,11 +409,18 @@ class SubmodelClient:
         try:
             logger.debug(f"Retrieving submodel element from submodel with ID: {submodel_id}")
 
-            response = requests.get(
-                url=endpoint,
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.get(
+                    url=endpoint,
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.get(
+                    url=endpoint,
+                    timeout=self.timeout
+                )
 
             if response.status_code == 200:
                 element_json = response.text
@@ -371,12 +458,20 @@ class SubmodelClient:
             if cursor:
                 params['cursor'] = cursor
 
-            response = requests.get(
-                url=endpoint,
-                params=params,
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.get(
+                    url=endpoint,
+                    params=params,
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.get(
+                    url=endpoint,
+                    params=params,
+                    timeout=self.timeout
+                )
 
             if response.status_code == 200:
                 json_elements = response.text
@@ -413,11 +508,18 @@ class SubmodelClient:
         try:
             logger.debug(f"Deleting submodel element from submodel with ID: {submodel_id}")
 
-            response = requests.delete(
-                url=endpoint,
-                headers=self.default_headers,
-                timeout=self.timeout
-            )
+            if self.auth_type and self.auth_credentials:
+                headers = self._add_auth_headers(self.default_headers)
+                response = requests.delete(
+                    url=endpoint,
+                    headers=headers,
+                    timeout=self.timeout
+                )
+            else:
+                response = requests.delete(
+                    url=endpoint,
+                    timeout=self.timeout
+                )
 
             if response.status_code == 204:
                 logger.debug(f"Successfully deleted submodel element from submodel with ID: '{submodel_id}'")

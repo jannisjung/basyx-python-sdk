@@ -157,7 +157,6 @@ class TestAasClient(unittest.TestCase):
         mock_put.assert_called_once_with(
             url=f"{self.client.repo_url}/{aas_id_b64}",
             json=mock_put.call_args.kwargs['json'],
-            headers={'Content-Type': 'application/json'},
             timeout=30
         )
 

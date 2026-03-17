@@ -15,6 +15,7 @@
     - [For Developers of this feature](#for-developers-of-this-feature)
     - [For Users in Projects](#for-users-in-projects)
   - [Usage](#usage)
+    - [Authentication](#authentication)
     - [Development Coverage (TODO)](#development-coverage-todo)
       - [AASX](#aasx)
       - [AAS Functions](#aas-functions)
@@ -64,6 +65,51 @@ The client SDK provides a comprehensive set of functions for interacting with Ec
 - `get_submodel_elements` – Retrieves all submodel elements from a submodel
 - `get_parent_id` – Returns the ID or a list of IDs of the parent shell(s) if the submodel is referenced by one or more shells
 - `get_parent` – Returns the parent object of a submodel or submodel element
+
+### Authentication
+
+The client SDK now supports both Basic Authentication and Token Authentication for securing API calls:
+
+- **Basic Authentication**: Username and password based authentication
+- **Token Authentication**: Bearer token based authentication
+
+To use authentication, you can either:
+
+1. Initialize the client with authentication credentials:
+   ```python
+   from basyx_client.aas import AasClient
+   
+   # Basic Authentication
+   aas_client = AasClient(
+       base_url="http://localhost:8080",
+       auth_type="basic",
+       auth_credentials=("username", "password")
+   )
+   
+   # Token Authentication
+   aas_client = AasClient(
+       base_url="http://localhost:8080",
+       auth_type="token",
+       auth_credentials=("your-token-here",)
+   )
+   ```
+
+2. Set authentication after client creation:
+   ```python
+   from basyx_client.submodel import SubmodelClient
+   
+   submodel_client = SubmodelClient(base_url="http://localhost:8080")
+   
+   # Add basic authentication
+   submodel_client.auth_type = "basic"
+   submodel_client.auth_credentials = ("username", "password")
+   
+   # Or add token authentication
+   submodel_client.auth_type = "token"
+   submodel_client.auth_credentials = ("your-token-here",)
+   ```
+
+All API calls made through the authenticated client will automatically include the appropriate authentication headers.
 
 > Note: The above descriptions reflect the current implementation status of the SDK.
 
