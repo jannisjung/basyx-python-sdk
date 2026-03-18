@@ -16,6 +16,7 @@
     - [For Users in Projects](#for-users-in-projects)
   - [Usage](#usage)
     - [Authentication](#authentication)
+      - [OAuth2 Authentication](#oauth2-authentication)
     - [Development Coverage (TODO)](#development-coverage-todo)
       - [AASX](#aasx)
       - [AAS Functions](#aas-functions)
@@ -68,10 +69,11 @@ The client SDK provides a comprehensive set of functions for interacting with Ec
 
 ### Authentication
 
-The client SDK now supports both Basic Authentication and Token Authentication for securing API calls:
+The client SDK now supports Basic Authentication, Token Authentication, and OAuth2 for securing API calls:
 
 - **Basic Authentication**: Username and password based authentication
 - **Token Authentication**: Bearer token based authentication
+- **OAuth2 Authentication**: Industry-standard protocol for authorization
 
 To use authentication, you can either:
 
@@ -108,6 +110,57 @@ To use authentication, you can either:
    submodel_client.auth_type = "token"
    submodel_client.auth_credentials = ("your-token-here",)
    ```
+
+#### OAuth2 Authentication
+
+The SDK provides comprehensive OAuth2 support with automatic token refresh capabilities. OAuth2 is the recommended authentication method for production applications.
+
+```python
+from basyx_client.aas import AasClient
+from basyx_client.auth import OAuth2Client
+
+# Create OAuth2 client
+oauth2_client = OAuth2Client(
+    client_id="your_client_id",
+    client_secret="your_client_secret",
+    token_url="https://your-oauth-provider.com/oauth/token",
+    authorization_url="https://your-oauth-provider.com/oauth/authorize",  # Optional, for authorization code flow
+    redirect_uri="http://localhost:8080/callback",  # Optional, for authorization code flow
+    scope="read write"  # Optional
+)
+
+# Method 1: Client Credentials Flow (service-to-service)
+oauth2_client.authenticate_client_credentials()
+
+# Method 2: Resource Owner Password Credentials Flow (user authentication)
+# oauth2_client.authenticate_password("username", "password")
+
+# Method 3: Authorization Code Flow (user authentication with redirect)
+# 1. Get authorization URL
+# auth_url = oauth2_client.get_authorization_url(state="random_state_string")
+# print(f"Visit this URL to authorize: {auth_url}")
+# 
+# 2. After user authorizes, they will be redirected with a code
+# 3. Exchange the code for tokens
+# oauth2_client.fetch_token(code="authorization_code_from_callback")
+
+# Create client with OAuth2 authentication
+aas_client = AasClient(
+    base_url="http://localhost:8080",
+    auth_type="oauth2",
+    auth_credentials=(oauth2_client,)
+)
+
+# All API calls will automatically include OAuth2 Bearer Token Authentication headers
+# The client will automatically refresh tokens when needed
+```
+
+Supported OAuth2 flows:
+- **Client Credentials Flow**: Service-to-service authentication
+- **Resource Owner Password Credentials Flow**: Direct user credential exchange
+- **Authorization Code Flow**: Standard web server flow with redirect
+
+The OAuth2 implementation includes automatic token refresh, so your application won't lose connectivity when tokens expire.
 
 All API calls made through the authenticated client will automatically include the appropriate authentication headers.
 

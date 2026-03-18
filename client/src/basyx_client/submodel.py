@@ -49,7 +49,11 @@ class SubmodelClient:
             from basyx_client.auth import add_token_auth
             token, = self.auth_credentials
             auth_headers = add_token_auth(auth_headers, token)
-            
+        elif self.auth_type == AuthType.OAUTH2:
+            from basyx_client.auth import add_oauth2_auth, OAuth2Client
+            oauth2_client: OAuth2Client = self.auth_credentials[0]
+            auth_headers = add_oauth2_auth(auth_headers, oauth2_client)
+
         return auth_headers
 
 
