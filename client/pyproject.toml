@@ -18,13 +18,13 @@ classifiers = [
 keywords = ["eclipse", "basyx", "client", "sdk"]
 dependencies = [
     "basyx-python-sdk==2.0.0",
-    "flask>=3.1.3",
     "requests>=2.32.5",
 ]
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest", "mypy"]
+test = ["flask>=3.1.3"]
 
 [project.urls]
 Homepage = "https://github.com/eclipse-basyx/basyx-python-sdk"
