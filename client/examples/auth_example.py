@@ -63,7 +63,7 @@ oauth2_client = OAuth2Client(
 # 1. Get authorization URL
 # auth_url = oauth2_client.get_authorization_url(state="random_state_string")
 # print(f"Visit this URL to authorize: {auth_url}")
-# 
+#
 # 2. After user authorizes, they will be redirected to your redirect_uri with a code
 # 3. Exchange the code for tokens
 # oauth2_client.fetch_token(code="authorization_code_from_callback")

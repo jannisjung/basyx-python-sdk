@@ -7,7 +7,8 @@ import base64
 import time
 import urllib.parse
 from enum import Enum
-from typing import Optional, Any
+from typing import Any
+
 import requests
 
 
@@ -27,9 +28,9 @@ class OAuth2Client:
         client_id: str,
         client_secret: str,
         token_url: str,
-        authorization_url: Optional[str] = None,
-        redirect_uri: Optional[str] = None,
-        scope: Optional[str] = None,
+        authorization_url: str | None = None,
+        redirect_uri: str | None = None,
+        scope: str | None = None,
         **kwargs
     ):
         """
@@ -50,12 +51,12 @@ class OAuth2Client:
         self.scope = scope
 
         # Token storage
-        self.access_token: Optional[str] = None
-        self.refresh_token: Optional[str] = None
-        self.expires_at: Optional[float] = None
+        self.access_token: str | None = None
+        self.refresh_token: str | None = None
+        self.expires_at: float | None = None
         self.token_data: dict[str, Any] = {}
 
-    def get_authorization_url(self, state: Optional[str] = None) -> str:
+    def get_authorization_url(self, state: str | None = None) -> str:
         """
         Generate the authorization URL for the authorization code flow.
 
@@ -82,7 +83,7 @@ class OAuth2Client:
         query_string = urllib.parse.urlencode(params)
         return f"{self.authorization_url}?{query_string}"
 
-    def fetch_token(self, code: Optional[str] = None, grant_type: str = 'authorization_code') -> dict[str, Any]:
+    def fetch_token(self, code: str | None = None, grant_type: str = 'authorization_code') -> dict[str, Any]:
         """
         Fetch an access token using the authorization code or refresh token.
 
@@ -227,7 +228,7 @@ def add_basic_auth(headers: dict, username: str, password: str) -> dict:
     :param password: Password for basic authentication
     :return: Updated headers dictionary
     """
-    credentials = base64.b64encode(f"{username}:{password}".encode('utf-8')).decode('ascii')
+    credentials = base64.b64encode(f"{username}:{password}".encode()).decode('ascii')
     headers['Authorization'] = f"Basic {credentials}"
     return headers
 

@@ -7,7 +7,6 @@ import requests
 from basyx.aas import adapter, model
 
 from basyx_client.aas import AasClient
-from basyx_client.submodel import SubmodelClient
 from basyx_client.utils import to_base64_urlencoded
 
 logging.basicConfig(
@@ -28,7 +27,7 @@ class TestAasClient(unittest.TestCase):
         "submodel_id2": "test_id:c7e4b2d9-3a6f-4f81-b5d2-8c1a9e7f4b64",
     }
     def setUp(self):
-        self.base_url = "http://localhost:8081"
+        self.base_url = "http://aas-env:8081"
 
         # Check if server is available
         try:
@@ -82,6 +81,10 @@ class TestAasClient(unittest.TestCase):
 
             # Filter to only our test shells
             test_shell_ids = [shell.id for shell in test_shells]
+            for shell in all_shells:
+                print(">>>", shell.__class__)
+                if not isinstance(shell, model.AssetAdministrationShell):
+                    print (shell)
             result_test_shells = [shell for shell in all_shells if shell.id in test_shell_ids]
 
             # Verify we got our test shells

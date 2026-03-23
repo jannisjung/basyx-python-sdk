@@ -66,6 +66,9 @@ The client SDK provides a comprehensive set of functions for interacting with Ec
 - `get_submodel_elements` – Retrieves all submodel elements from a submodel
 - `get_parent_id` – Returns the ID or a list of IDs of the parent shell(s) if the submodel is referenced by one or more shells
 - `get_parent` – Returns the parent object of a submodel or submodel element
+- `invoke_operation` – Invokes an operation within a submodel synchronously
+- `invoke_operation_async` – Invokes an operation within a submodel asynchronously
+- `get_operation_result` – Gets the result of an asynchronous operation invocation
 
 ### Authentication
 

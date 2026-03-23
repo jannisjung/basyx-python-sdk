@@ -2,13 +2,13 @@
 Unit tests for authentication functionality in the BaSyx client.
 """
 
-import unittest
 import base64
-from unittest.mock import Mock, patch
+import unittest
+from unittest.mock import Mock
 
 from basyx_client.aas import AasClient
+from basyx_client.auth import AuthType, OAuth2Client, add_basic_auth, add_token_auth
 from basyx_client.submodel import SubmodelClient
-from basyx_client.auth import add_basic_auth, add_token_auth, AuthType, OAuth2Client
 
 
 class TestAuthUtils(unittest.TestCase):

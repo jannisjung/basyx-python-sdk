@@ -1,13 +1,13 @@
 import json
-import unittest
 import logging
-from unittest.mock import patch, Mock
+import unittest
+from unittest.mock import Mock, patch
 
-from basyx.aas import model
+from basyx.aas import adapter, model
 
+from basyx_client.operation_handle import OperationHandle
 from basyx_client.submodel import SubmodelClient
 from basyx_client.utils import to_base64_urlencoded
-from basyx.aas import adapter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -83,7 +83,7 @@ class TestSubmodelClient(unittest.TestCase):
         self.assertEqual(self.default_submodel.id, remote_submodel.id)
         # Verify the request was called with correct arguments
         submodel_id_b64 = to_base64_urlencoded(self.default_submodel.id)
-        mock_get.assert_called_once_with(f"{self.client.repo_url}/{submodel_id_b64}", timeout=30)
+        mock_get.assert_called_once_with(f"{self.client.repo_url}/{submodel_id_b64}", headers={'Content-Type': 'application/json'}, timeout=30)
 
     @patch('basyx_client.submodel.requests.get')
     def test_get_submodel_failure(self, mock_get):
@@ -185,7 +185,7 @@ class TestSubmodelClient(unittest.TestCase):
         # Expect empty page for failure
         self.assertEqual(0, len(page.result))
         self.assertIsNone(page.cursor)
-        
+
     @patch('basyx_client.submodel.requests.get')
     def test_get_submodels_with_cursor(self, mock_get):
         # Create test submodels
@@ -209,13 +209,18 @@ class TestSubmodelClient(unittest.TestCase):
         for i, submodel in enumerate(test_submodels):
             self.assertEqual(submodel.id, page.result[i].id)
         # Verify the request was called with correct arguments
-        mock_get.assert_called_once_with(f"{self.client.repo_url}", params={'limit': 100, 'cursor': 'test_cursor'}, timeout=30)
+        mock_get.assert_called_once_with(f"{self.client.repo_url}", params={'limit': 100, 'cursor': 'test_cursor'}, headers={'Content-Type': 'application/json'}, timeout=30)
 
     def _create_submodel_element(self) -> model.Property:
         return model.Property(
             id_short="TestProperty",
             value_type=model.datatypes.String,
             value="test_value"
+        )
+
+    def _create_operation_element(self) -> model.Operation:
+        return model.Operation(
+            id_short="TestOperation"
         )
 
     @patch('basyx_client.submodel.requests.post')
@@ -353,7 +358,7 @@ class TestSubmodelClient(unittest.TestCase):
 
         # Expect failure
         self.assertFalse(result)
-        
+
     @patch('basyx_client.submodel.requests.get')
     def test_get_submodel_element(self, mock_get):
         # Mock successful response
@@ -379,6 +384,7 @@ class TestSubmodelClient(unittest.TestCase):
         submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
         mock_get.assert_called_once_with(
             url=f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{id_short_path}",
+            headers={'Content-Type': 'application/json'},
             timeout=30
         )
 
@@ -408,8 +414,10 @@ class TestSubmodelClient(unittest.TestCase):
         mock_response = Mock()
         mock_response.status_code = 200
         # Create a JSON representation of the elements
-        elements_dict = {"result": test_elements}
-        elements_json = json.dumps(elements_dict, cls=adapter.json.AASToJsonEncoder)
+        # Note: We need to serialize the elements first, then wrap in result dict
+        serialized_elements = [json.loads(json.dumps(elem, cls=adapter.json.AASToJsonEncoder)) for elem in test_elements]
+        elements_dict = {"result": serialized_elements}
+        elements_json = json.dumps(elements_dict)
         mock_response.text = elements_json
         mock_get.return_value = mock_response
 
@@ -528,6 +536,251 @@ class TestSubmodelClient(unittest.TestCase):
 
         # Verify response - method is not fully implemented and returns None
         self.assertIsNone(parent)
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_invoke_operation(self, mock_post):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.text = '{"outputArguments": [{"value": {"id_short": "outputValue", "value": "result"}}], "inoutputArguments": []}'
+        mock_post.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+        input_args = [
+            model.Property(id_short="inputValue", value_type=model.datatypes.String, value="test_input")
+        ]
+
+        # Test invoke_operation
+        result = self.client.invoke_operation(submodel=test_submodel, operation_id_short_path=operation_id, input_arguments=input_args)
+
+        # Verify response
+        self.assertIsNotNone(result)
+        self.assertIn("outputArguments", result)
+        self.assertIn("inoutputArguments", result)
+        # Verify the request was called with correct arguments
+        submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        self.assertIn(f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{operation_id}/invoke", call_args[1].get('url', call_args[0][0] if call_args[0] else ''))
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_invoke_operation_no_input(self, mock_post):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.text = '{"outputArguments": [], "inoutputArguments": []}'
+        mock_post.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+
+        # Test invoke_operation without input arguments
+        result = self.client.invoke_operation(submodel=test_submodel, operation_id_short_path=operation_id)
+
+        # Verify response
+        self.assertIsNotNone(result)
+        self.assertIn("outputArguments", result)
+        self.assertIn("inoutputArguments", result)
+        self.assertEqual(result["outputArguments"], [])
+        self.assertEqual(result["inoutputArguments"], [])
+        # Verify the request was called with correct arguments
+        submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        self.assertIn(f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{operation_id}/invoke", call_args[1].get('url', call_args[0][0] if call_args[0] else ''))
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_invoke_operation_failure(self, mock_post):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 404  # Not found
+        mock_response.text = "Not Found"
+        mock_post.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+
+        # Test invoke_operation
+        result = self.client.invoke_operation(submodel=test_submodel, operation_id_short_path=operation_id)
+
+        # Expect None for failure
+        self.assertIsNone(result)
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_invoke_operation_async(self, mock_post):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 202
+        mock_response.content = True
+        mock_response.json.return_value = {"handleId": "test-handle-id"}
+        mock_post.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+        input_args = [
+            model.Property(id_short="inputValue", value_type=model.datatypes.String, value="test_input")
+        ]
+
+        # Test invoke_operation_async
+        result = self.client.invoke_operation_async(submodel=test_submodel, operation_id_short_path=operation_id, input_arguments=input_args)
+
+        # Verify response - should return OperationHandle object
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, OperationHandle)
+        self.assertEqual(result.handle_id, "test-handle-id")
+        # Verify the request was called with correct arguments
+        submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        self.assertIn(f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{operation_id}/invoke-async", call_args[1].get('url', call_args[0][0] if call_args[0] else ''))
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_operation_result(self, mock_get):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.text = '{"outputArguments": [{"value": {"id_short": "outputValue", "value": "result"}}], "inoutputArguments": []}'
+        mock_response.json.return_value = {"outputArguments": [{"value": {"id_short": "outputValue", "value": "result"}}], "inoutputArguments": []}
+        mock_get.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+        handle_id = "test-handle-id"
+
+        # Test get_operation_result with string handle_id
+        result = self.client.get_operation_result(submodel=test_submodel, operation_id_short_path=operation_id, handle=handle_id)
+
+        # Verify response
+        self.assertIsNotNone(result)
+        self.assertIn("outputArguments", result)
+        # Verify the request was called with correct arguments - should use GET /operation?handleId= endpoint
+        submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
+        mock_get.assert_called_once()
+        call_args = mock_get.call_args
+        self.assertIn(f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{operation_id}/operation?handleId={handle_id}", call_args[1].get('url', call_args[0][0] if call_args[0] else ''))
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_operation_result_with_handle_object(self, mock_get):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.text = '{"outputArguments": [{"value": {"id_short": "outputValue", "value": "result"}}], "inoutputArguments": []}'
+        mock_get.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+        handle = OperationHandle(handle_id="test-handle-id")
+
+        # Test get_operation_result with OperationHandle object
+        result = self.client.get_operation_result(submodel=test_submodel, operation_id_short_path=operation_id, handle=handle)
+
+        # Verify response
+        self.assertIsNotNone(result)
+        self.assertIn("outputArguments", result)
+        # Verify the request was called with correct arguments
+        submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
+        mock_get.assert_called_once()
+        call_args = mock_get.call_args
+        self.assertIn(f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{operation_id}/operation?handleId={handle.handle_id}", call_args[1].get('url', call_args[0][0] if call_args[0] else ''))
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_operation_result_not_ready(self, mock_get):
+        # Mock 202 response (result not ready)
+        mock_response = Mock()
+        mock_response.status_code = 202
+        mock_response.text = "Result not ready"
+        mock_get.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+        handle_id = "test-handle-id"
+
+        # Test get_operation_result when result is not ready
+        result = self.client.get_operation_result(submodel=test_submodel, operation_id_short_path=operation_id, handle=handle_id)
+
+        # Expect None when result is not ready
+        self.assertIsNone(result)
+
+    @patch('basyx_client.submodel.requests.get')
+    def test_get_operation_result_failure(self, mock_get):
+        # Mock failed response
+        mock_response = Mock()
+        mock_response.status_code = 404  # Not found
+        mock_response.text = "Not Found"
+        mock_get.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+        handle_id = "test-handle-id"
+
+        # Test get_operation_result
+        result = self.client.get_operation_result(submodel=test_submodel, operation_id_short_path=operation_id, handle=handle_id)
+
+        # Expect None for failure
+        self.assertIsNone(result)
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_invoke_operation_with_inoutput_arguments(self, mock_post):
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.text = '{"outputArguments": [], "inoutputArguments": [{"value": {"id_short": "inoutputValue", "value": "modified"}}]}'
+        mock_post.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+        inoutput_args = [
+            model.Property(id_short="inoutputValue", value_type=model.datatypes.String, value="initial")
+        ]
+
+        # Test invoke_operation with inoutput arguments
+        result = self.client.invoke_operation(submodel=test_submodel, operation_id_short_path=operation_id, inoutput_arguments=inoutput_args)
+
+        # Verify response
+        self.assertIsNotNone(result)
+        self.assertIn("outputArguments", result)
+        self.assertIn("inoutputArguments", result)
+        # Verify the request was called with correct arguments
+        submodel_id_b64 = to_base64_urlencoded(test_submodel.id)
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        self.assertIn(f"{self.client.repo_url}/{submodel_id_b64}/submodel-elements/{operation_id}/invoke", call_args[1].get('url', call_args[0][0] if call_args[0] else ''))
+
+    @patch('basyx_client.submodel.requests.post')
+    def test_invoke_operation_status_201(self, mock_post):
+        # Mock successful response with status code 201
+        mock_response = Mock()
+        mock_response.status_code = 201
+        mock_response.content = True
+        mock_response.text = '{"outputArguments": [{"value": {"id_short": "outputValue", "value": "result"}}], "inoutputArguments": []}'
+        mock_post.return_value = mock_response
+
+        # Create test submodel and operation id
+        test_submodel = self._create_submodel()
+        operation_id = "TestOperation"
+
+        # Test invoke_operation
+        result = self.client.invoke_operation(submodel=test_submodel, operation_id_short_path=operation_id)
+
+        # Verify response
+        self.assertIsNotNone(result)
+        self.assertIn("outputArguments", result)
+        self.assertIn("inoutputArguments", result)
 
 
 if __name__ == "__main__":

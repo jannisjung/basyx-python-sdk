@@ -5,9 +5,9 @@ import requests
 from basyx.aas import adapter, model
 
 from basyx_client.auth import AuthType
+from basyx_client.operation_handle import OperationHandle
 from basyx_client.pagination import Page
 from basyx_client.utils import to_base64_urlencoded
-
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +26,11 @@ class SubmodelClient:
         self.default_headers = {'Content-Type': 'application/json'}
         self.auth_type = None
         self.auth_credentials = None
-        
+
     def _add_auth_headers(self, headers: dict | None = None) -> dict:
         """
         Add authentication headers to the request headers.
-        
+
         :param headers: Original headers or None
         :return: Headers with authentication added, or empty dict if no auth needed
         """
@@ -50,7 +50,7 @@ class SubmodelClient:
             token, = self.auth_credentials
             auth_headers = add_token_auth(auth_headers, token)
         elif self.auth_type == AuthType.OAUTH2:
-            from basyx_client.auth import add_oauth2_auth, OAuth2Client
+            from basyx_client.auth import OAuth2Client, add_oauth2_auth
             oauth2_client: OAuth2Client = self.auth_credentials[0]
             auth_headers = add_oauth2_auth(auth_headers, oauth2_client)
 
@@ -72,20 +72,14 @@ class SubmodelClient:
             json_submodel = json.dumps(submodel, cls=adapter.json.AASToJsonEncoder)
 
             # Call the API
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.post(
-                    url=self.repo_url,
-                    json=json.loads(json_submodel),
-                    headers=headers,
-                    timeout=self.timeout
-                )
-            else:
-                response = requests.post(
-                    url=self.repo_url,
-                    json=json.loads(json_submodel),
-                    timeout=self.timeout
-                )
+            headers = self._add_auth_headers(self.default_headers)
+
+            response = requests.post(
+                url=self.repo_url,
+                data=json_submodel,
+                headers=headers,
+                timeout=self.timeout
+            )
 
             if response.status_code == 201:
                 logger.debug(f"Successfully created submodel with ID: {submodel.id}")
@@ -114,11 +108,8 @@ class SubmodelClient:
             submodel_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.get(submodel_endpoint, headers=headers, timeout=self.timeout)
-            else:
-                response = requests.get(submodel_endpoint, timeout=self.timeout)
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.get(submodel_endpoint, headers=headers, timeout=self.timeout)
 
             if response.status_code == 200:
                 submodel_json = response.text
@@ -152,20 +143,13 @@ class SubmodelClient:
             submodel_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.put(
-                    url=submodel_endpoint,
-                    json=json.loads(json_submodel),
-                    headers=headers,
-                    timeout=self.timeout
-                )
-            else:
-                response = requests.put(
-                    url=submodel_endpoint,
-                    json=json.loads(json_submodel),
-                    timeout=self.timeout
-                )
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.put(
+                url=submodel_endpoint,
+                data=json_submodel,
+                headers=headers,
+                timeout=self.timeout
+            )
 
             if response.status_code == 204:
                 logger.debug(f"Successfully updated submodel with ID: {submodel.id}")
@@ -194,11 +178,9 @@ class SubmodelClient:
             submodel_endpoint = f"{self.repo_url}/{encoded_id}"
 
             # Call the API
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.delete(submodel_endpoint, headers=headers, timeout=self.timeout)
-            else:
-                response = requests.delete(submodel_endpoint, timeout=self.timeout)
+
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.delete(submodel_endpoint, headers=headers, timeout=self.timeout)
 
             if response.status_code == 204:
                 logger.debug(f"Successfully deleted submodel with ID: {submodel_id}")
@@ -229,11 +211,8 @@ class SubmodelClient:
                 params['cursor'] = cursor
 
             # Call the API
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.get(self.repo_url, params=params, headers=headers, timeout=self.timeout)
-            else:
-                response = requests.get(self.repo_url, params=params, timeout=self.timeout)
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.get(self.repo_url, params=params, headers=headers, timeout=self.timeout)
 
             if response.status_code == 200:
                 json_submodels = response.text
@@ -279,20 +258,14 @@ class SubmodelClient:
 
             json_submodel_element: str = json.dumps(submodel_element, cls=adapter.json.AASToJsonEncoder)
 
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.post(
-                    url=endpoint,
-                    json=json.loads(json_submodel_element),
-                    headers=headers,
-                    timeout=self.timeout
-                )
-            else:
-                response = requests.post(
-                    url=endpoint,
-                    json=json.loads(json_submodel_element),
-                    timeout=self.timeout
-                )
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.post(
+                url=endpoint,
+                data=json_submodel_element,
+                headers=headers,
+                timeout=self.timeout
+            )
+
 
             if response.status_code == 201:
                 logger.debug(f"Successfully added SubmodelElement '{submodel_element.id_short}' to submodel with ID: '{submodel_id}'")
@@ -325,20 +298,13 @@ class SubmodelClient:
 
             json_submodel_element: str = json.dumps(update, cls=adapter.json.AASToJsonEncoder)
 
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.put(
-                    url=endpoint,
-                    json=json.loads(json_submodel_element),
-                    headers=headers,
-                    timeout=self.timeout
-                )
-            else:
-                response = requests.put(
-                    url=endpoint,
-                    json=json.loads(json_submodel_element),
-                    timeout=self.timeout
-                )
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.put(
+                url=endpoint,
+                data=json_submodel_element,
+                headers=headers,
+                timeout=self.timeout
+            )
 
             if response.status_code == 204:
                 logger.debug(f"Successfully updated SubmodelElement '{update.id_short}' in submodel with ID: '{submodel_id}'")
@@ -413,18 +379,13 @@ class SubmodelClient:
         try:
             logger.debug(f"Retrieving submodel element from submodel with ID: {submodel_id}")
 
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.get(
-                    url=endpoint,
-                    headers=headers,
-                    timeout=self.timeout
-                )
-            else:
-                response = requests.get(
-                    url=endpoint,
-                    timeout=self.timeout
-                )
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.get(
+                url=endpoint,
+                headers=headers,
+                timeout=self.timeout
+            )
+
 
             if response.status_code == 200:
                 element_json = response.text
@@ -462,20 +423,13 @@ class SubmodelClient:
             if cursor:
                 params['cursor'] = cursor
 
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.get(
-                    url=endpoint,
-                    params=params,
-                    headers=headers,
-                    timeout=self.timeout
-                )
-            else:
-                response = requests.get(
-                    url=endpoint,
-                    params=params,
-                    timeout=self.timeout
-                )
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.get(
+                url=endpoint,
+                params=params,
+                headers=headers,
+                timeout=self.timeout
+            )
 
             if response.status_code == 200:
                 json_elements = response.text
@@ -512,18 +466,13 @@ class SubmodelClient:
         try:
             logger.debug(f"Deleting submodel element from submodel with ID: {submodel_id}")
 
-            if self.auth_type and self.auth_credentials:
-                headers = self._add_auth_headers(self.default_headers)
-                response = requests.delete(
-                    url=endpoint,
-                    headers=headers,
-                    timeout=self.timeout
-                )
-            else:
-                response = requests.delete(
-                    url=endpoint,
-                    timeout=self.timeout
-                )
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.delete(
+                url=endpoint,
+                headers=headers,
+                timeout=self.timeout
+            )
+
 
             if response.status_code == 204:
                 logger.debug(f"Successfully deleted submodel element from submodel with ID: '{submodel_id}'")
@@ -534,6 +483,216 @@ class SubmodelClient:
         except Exception as e:
             logger.warning(f"Unexpected error when deleting submodel element: {e}")
             return False
+
+    def invoke_operation(self, submodel: model.Submodel, operation_id_short_path: str, input_arguments: list | None = None, inoutput_arguments: list | None = None) -> dict[str, list[model.SubmodelElement]] | None:
+        """
+        Invokes an operation within a submodel synchronously.
+
+        :param submodel: The submodel containing the operation to invoke
+        :param operation_id_short_path: The idShort path of the operation to invoke (e.g., "myOperation" or "myCollection.myOperation")
+        :param input_arguments: Optional dictionary of input arguments as BaSyx submodel elements for the operation
+        :param inoutput_arguments: Optional dictionary of inoutput arguments as BaSyx submodel elements for the operation
+        :return: The result of the operation invocation, or None if the invocation failed
+        :rtype: dict | None
+        """
+        submodel_id: str = submodel.id
+
+        # Encode the submodel ID for the API
+        encoded_id = to_base64_urlencoded(submodel_id)
+        endpoint = f"{self.repo_url}/{encoded_id}/submodel-elements/{operation_id_short_path}/invoke"
+
+        try:
+            logger.debug(f"Invoking operation '{operation_id_short_path}' in submodel with ID: {submodel_id}")
+
+            # Prepare request data - operation variables should be BaSyx submodel elements
+            operation_arguments: dict = self.input_variablify(input_arguments, inoutput_arguments)
+            operation_arguments_json: str = json.dumps(operation_arguments, cls=adapter.json.AASToJsonEncoder)
+
+            # Call the API
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.post(
+                url=endpoint,
+                data=operation_arguments_json,
+                headers=headers,
+                timeout=self.timeout
+            )
+
+            if response.status_code in [200, 201]:
+                response_txt = response.text if response.content else ""
+                response_basyx = json.loads(response_txt, cls=adapter.json.AASFromJsonDecoder)
+
+                result = {
+                    "outputArguments": [item["value"] for item in response_basyx["outputArguments"]] if "outputArguments" in response_basyx else [],
+                    "inoutputArguments": [item["value"] for item in response_basyx["inoutputArguments"]] if "inoutputArguments" in response_basyx else [],
+                }
+
+                logger.debug(f"Successfully invoked operation '{operation_id_short_path}' in submodel with ID: '{submodel_id}'")
+                return result
+            else:
+                logger.warning(f"Failed to invoke operation '{operation_id_short_path}' in submodel with ID: '{submodel_id}': {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            logger.warning(f"Unexpected error when invoking operation: {e}")
+            return None
+
+    def invoke_operation_async(self, submodel: model.Submodel, operation_id_short_path: str, input_arguments: list | None = None, inoutput_arguments: list | None = None) -> OperationHandle | None:
+        """
+        Invokes an operation within a submodel asynchronously.
+
+        :param submodel: The submodel containing the operation to invoke
+        :param operation_id_short_path: The idShort path of the operation to invoke (e.g., "myOperation" or "myCollection.myOperation")
+        :param input_arguments: Optional list of input arguments as BaSyx submodel elements for the operation
+        :param inoutput_arguments: Optional list of inoutput arguments as BaSyx submodel elements for the operation
+        :return: An OperationHandle object containing the handle ID, or None if the invocation failed
+        :rtype: OperationHandle | None
+        """
+        submodel_id: str = submodel.id
+
+        # Encode the submodel ID for the API
+        encoded_id = to_base64_urlencoded(submodel_id)
+        endpoint = f"{self.repo_url}/{encoded_id}/submodel-elements/{operation_id_short_path}/invoke-async"
+
+        try:
+            logger.debug(f"Invoking operation '{operation_id_short_path}' asynchronously in submodel with ID: {submodel_id}")
+
+            # Prepare request data - operation variables should be BaSyx submodel elements
+            operation_arguments: dict = self.input_variablify(input_arguments, inoutput_arguments)
+            operation_arguments_json: str = json.dumps(operation_arguments, cls=adapter.json.AASToJsonEncoder)
+
+            # Call the API
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.post(
+                url=endpoint,
+                data=operation_arguments_json,
+                headers=headers,
+                timeout=self.timeout
+            )
+
+            if response.status_code == 202:
+                # For async invocation, we get an OperationHandle with handleId
+                result = response.json() if response.content else {}
+                handle_id = result.get("handleId")
+                if handle_id:
+                    logger.debug(f"Successfully initiated async invocation of operation '{operation_id_short_path}' in submodel with ID: '{submodel_id}', handleId: {handle_id}")
+                    return OperationHandle(handle_id=handle_id)
+                else:
+                    logger.warning(f"Failed to get handleId from async invocation response for operation '{operation_id_short_path}' in submodel with ID: '{submodel_id}'")
+                    return None
+            else:
+                logger.warning(f"Failed to invoke operation '{operation_id_short_path}' asynchronously in submodel with ID: '{submodel_id}': {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            logger.warning(f"Unexpected error when invoking operation asynchronously: {e}")
+            return None
+
+    def get_operation_result(self, submodel: model.Submodel, operation_id_short_path: str, handle: OperationHandle | str) -> dict | None:
+        """
+        Gets the result of an asynchronous operation invocation.
+
+        :param submodel: The submodel containing the operation
+        :param operation_id_short_path: The idShort path of the operation
+        :param handle: The OperationHandle object or handle ID string from the async invocation
+        :return: The result of the operation, or None if the operation is still running or failed
+        :rtype: dict | None
+        """
+        submodel_id: str = submodel.id
+
+        # Extract handle_id from OperationHandle if provided
+        if isinstance(handle, OperationHandle):
+            handle_id = handle.handle_id
+        else:
+            handle_id = handle
+
+        # Encode the submodel ID for the API
+        encoded_id = to_base64_urlencoded(submodel_id)
+        # Call the GET endpoint with handleId query parameter
+        endpoint = f"{self.repo_url}/{encoded_id}/submodel-elements/{operation_id_short_path}/operation?handleId={handle_id}"
+
+        try:
+            logger.debug(f"Getting result for operation '{operation_id_short_path}' with handle ID '{handle_id}' in submodel with ID: {submodel_id}")
+
+            # Call the API
+            headers = self._add_auth_headers(self.default_headers)
+            response = requests.get(
+                url=endpoint,
+                headers=headers,
+                timeout=self.timeout
+            )
+
+            if response.status_code == 200:
+                response_txt = response.text if response.content else ""
+                result = json.loads(response_txt, cls=adapter.json.AASFromJsonDecoder) if response_txt else {}
+                logger.debug(f"Successfully retrieved result for operation '{operation_id_short_path}' with handle ID '{handle_id}' in submodel with ID: '{submodel_id}'")
+                return result
+            elif response.status_code == 202:
+                # Result not ready yet
+                logger.debug(f"Result for operation '{operation_id_short_path}' with handle ID '{handle_id}' is not ready yet")
+                return None
+            else:
+                logger.warning(f"Failed to get result for operation '{operation_id_short_path}' with handle ID '{handle_id}' in submodel with ID: '{submodel_id}': {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            logger.warning(f"Unexpected error when getting operation result: {e}")
+            return None
+
+    def input_variablify(self, input_arguments: list | None = None, inoutput_arguments: list | None = None) -> dict:
+        """
+        Creates the request body for operation invocation with input and inoutput arguments.
+
+        :param input_arguments: Dictionary of input arguments as BaSyx submodel elements
+        :param inoutput_arguments: Dictionary of inoutput arguments as BaSyx submodel elements
+        :return: Dictionary formatted for the API request body
+        """
+
+        return {
+            "inoutputArguments": self._serialize_operation_variables(inoutput_arguments) if inoutput_arguments else [],
+            "inputArguments": self._serialize_operation_variables(input_arguments) if input_arguments else [],
+        }
+
+    def output_variablify(self, output_arguments: model.SubmodelElement) -> list:
+        """
+        Formats a BaSyx object as operation output arguments.
+        NOTE: Not spec conform, according to spec, it should look like the outcommented method below!
+        This is a workaround that workes with the current version of EclipseBaSyx.
+
+        :param basyx_object: The BaSyx object to format
+        :return: List of output variables in the format expected by the API
+        """
+        return [
+            {"value": value} for value in output_arguments
+        ]
+
+    def _serialize_operation_variables(self, variables: list) -> list:
+        """
+        Serializes operation variables (input_arguments, inoutput_arguments) as BaSyx submodel elements.
+
+        :param variables: Dictionary of variable name to BaSyx submodel element mappings
+        :return: List of serialized operation variables in the format expected by the API
+        """
+        result = []
+        for value in variables:
+            # Each variable is serialized as a BaSyx submodel element
+            serialized = json.dumps(value, cls=adapter.json.AASToJsonEncoder)
+            result.append({"value": json.loads(serialized)})
+        return result
+
+    def _deserialize_basyx_object(self, basyx_json_str: str) -> object:
+        """
+        Deserializes a BaSyx JSON string to a Python object.
+
+        :param basyx_json_str: JSON string representation of a BaSyx object
+        :return: Deserialized Python object
+        """
+        return json.loads(basyx_json_str, cls=adapter.json.AASFromJsonDecoder)
+
+    def _serialize_basyx_object(self, basyx_obj: object) -> str:
+        """
+        Serializes a BaSyx object to a JSON string.
+
+        :param basyx_obj: BaSyx object to serialize
+        :return: JSON string representation
+        """
+        return json.dumps(basyx_obj, cls=adapter.json.AASToJsonEncoder)
 
     def get_parent_id(self, submodel: model.Submodel) -> str | list[str] | None:
         """
