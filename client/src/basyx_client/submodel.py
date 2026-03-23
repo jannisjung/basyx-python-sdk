@@ -536,6 +536,10 @@ class SubmodelClient:
             return None
 
     def invoke_operation_async(self, submodel: model.Submodel, operation_id_short_path: str, input_arguments: list | None = None, inoutput_arguments: list | None = None) -> OperationHandle | None:
+        # FIXME: This method needs to be tested and investigated whether it is implemented in the current
+        # Docker component (https://hub.docker.com/r/eclipsebasyx/aas-environment) used for integration tests.
+        # The async operation invocation requires the AAS environment to support the invoke-async endpoint.
+
         """
         Invokes an operation within a submodel asynchronously.
 
